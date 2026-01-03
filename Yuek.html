@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的星系引力图</title>
+    <!-- 引入 D3.js 可视化库 -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            background-color: #0b0c10; /* 深空黑 */
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: white;
+        }
+
+        /* 背景星星动画 */
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 2s infinite ease-in-out;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 1; }
+        }
+
+        /* 悬停卡片样式 (磨砂玻璃特效) */
+        #tooltip {
+            position: absolute;
+            opacity: 0;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 12px;
+            pointer-events: none;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+            max-width: 250px;
+            transition: all 0.2s ease;
+            transform: translate(-50%, -120%);
+            z-index: 10;
+        }
+
+        #tooltip h3 {
+            margin: 0 0 5px 0;
+            font-size: 16px;
+            color: #66fcf1; /* 霓虹蓝标题 */
+        }
+        
+        #tooltip .meta {
+            font-size: 12px;
+            color: #c5c6c7;
+            margin-bottom: 8px;
+        }
+
+        #tooltip p {
+            margin: 0;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 悬浮提示框 -->
+    <div id="tooltip"></div>
+
+    <script>
+        // ==========================================
+        // 👇 在这里修改你的朋友数据 👇
+        // ==========================================
+        
+        // 这里的顺序决定了扇区的排列顺序
+        const stages = ["小学", "初中", "高中", "大学", "研究生", "实习/工作"];
+
+        const friendsData = [
+            // 格式：{ 姓名, 阶段, 亲密距离(越小越近), 是否联系(true/false), 性别(男/女), 故事 }
+            
+            // --- 研究生阶段 ---
+            { name: "A", stage: "研究生", distance: 15, contact: true, gender: "女", story: "研一最崩溃的时候陪我通宵改论文，还给我煮面吃。" },
+            { name: "B", stage: "研究生", distance: 40, contact: true, gender: "男", story: "带我入门实验室的大神，虽然毕业了但依然会指导我。" },
+
+            // --- 大学阶段 ---
+            { name: "小", stage: "大学", distance: 20, contact: true, gender: "女", story: "大学四年的饭搭子，也是也是我的情感垃圾桶。" },
+            { name: "C", stage: "大学", distance: 60, contact: false, gender: "男", story: "曾经一起办过最大的活动，教会我什么是领导力。" },
+
+            // --- 高中阶段 ---
+            { name: "D", stage: "高中", distance: 30, contact: true, gender: "女", story: "那个陪我晚自习逃课看星星的人，虽然异地但心很近。" },
+            { name: "老班", stage: "高中", distance: 80, contact: false, gender: "男", story: "虽然很凶，但是唯一一个劝我不要放弃数学的人。" },
+            
+            // --- 实习阶段 ---
+            { name: "Mentor E", stage: "实习/工作", distance: 50, contact: true, gender: "女", story: "我的职场引路人，非常有气质的姐姐。" },
+            
+             // --- 初中/小学 ---
+            { name: "F", stage: "小学", distance: 10, contact: true, gender: "女", story: "认识20年了，甚至不需要说话就知道对方在想什么。" },
+        ];
+
+        // ==========================================
+        // 👆 修改结束，下面是生成逻辑，无需修改 👆
+        // ==========================================
+
+        // 1. 创建星空背景
+        function createStars() {
+            for(let i=0; i<100; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.width = Math.random() * 3 + 'px';
+                star.style.height = star.style.width;
+                star.style.left = Math.random() * 100 + 'vw';
+                star.style.top = Math.random() * 100 + 'vh';
+                star.style.animationDuration = (Math.random() * 3 + 1) + 's';
+                document.body.appendChild(star);
+            }
+        }
+        createStars();
+
+        // 2. 设置画布尺寸
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        // 半径：留出一些边距
+        const maxRadius = Math.min(width, height) / 2 - 80; 
+
+        // 创建 SVG 容器
+        const svg = d3.select("body").append("svg")
+            .attr("width", width)
+            .attr("height", height)
+            .append("g")
+            .attr("transform", `translate(${centerX},${centerY})`);
+
+        // 3. 定义比例尺
+        // 角度比例尺：把阶段映射到角度 (0 到 2*PI)
+        const angleScale = d3.scaleBand()
+            .domain(stages)
+            .range([0, 2 * Math.PI])
+            .align(0);
+
+        // 半径比例尺：把亲密度(0-100)映射到像素距离
+        // 0是圆心，100是边缘
+        const radiusScale = d3.scaleLinear()
+            .domain([0, 100])
+            .range([50, maxRadius]); // 50是为了不和中间的“我”重叠
+
+        // 颜色映射
+        const colorScale = (gender) => gender === "女" ? "#ff4d94" : "#00d2ff";
+
+        // 4. 定义发光滤镜 (Glow Filter)
+        const defs = svg.append("defs");
+        const filter = defs.append("filter")
+            .attr("id", "glow");
+        filter.append("feGaussianBlur")
+            .attr("stdDeviation", "2.5")
+            .attr("result", "coloredBlur");
+        const feMerge = filter.append("feMerge");
+        feMerge.append("feMergeNode").attr("in", "coloredBlur");
+        feMerge.append("feMergeNode").attr("in", "SourceGraphic");
+
+        // 5. 绘制扇区辅助线和标签
+        stages.forEach(stage => {
+            const angle = angleScale(stage) + angleScale.bandwidth() / 2; // 扇区中心角度
+            const labelRadius = maxRadius + 30;
+            
+            // 转换极坐标到笛卡尔坐标
+            const x = Math.sin(angle) * maxRadius;
+            const y = -Math.cos(angle) * maxRadius;
+            const labelX = Math.sin(angle) * labelRadius;
+            const labelY = -Math.cos(angle) * labelRadius;
+
+            // 画分割虚线 (可选，像草图那样)
+            // 这里我们画扇区的边界线
+            const startAngle = angleScale(stage);
+            const lineX = Math.sin(startAngle) * maxRadius;
+            const lineY = -Math.cos(startAngle) * maxRadius;
+            
+            svg.append("line")
+                .attr("x1", 0)
+                .attr("y1", 0)
+                .attr("x2", lineX)
+                .attr("y2", lineY)
+                .attr("stroke", "rgba(255,255,255,0.1)")
+                .attr("stroke-dasharray", "4,4");
+
+            // 添加阶段文字标签
+            svg.append("text")
+                .attr("x", labelX)
+                .attr("y", labelY)
+                .attr("text-anchor", "middle")
+                .attr("dominant-baseline", "middle")
+                .attr("fill", "#888")
+                .attr("font-size", "14px")
+                .text(stage);
+        });
+
+        // 6. 绘制圆心（我）
+        svg.append("circle")
+            .attr("r", 15)
+            .attr("fill", "#ffd700") // 金色
+            .style("filter", "url(#glow)")
+            .style("cursor", "pointer");
+        
+        svg.append("text")
+            .attr("y", 35)
+            .attr("text-anchor", "middle")
+            .attr("fill", "#ffd700")
+            .attr("font-size", "12px")
+            .text("我");
+
+        // 7. 处理数据位置
+        // 为了防止点重叠，我们在计算角度时，加上一点随机偏移量
+        const processedData = friendsData.map(d => {
+            const bandwidth = angleScale.bandwidth();
+            const startAngle = angleScale(d.stage);
+            // 在扇区范围内随机偏移，保留两边边距
+            const randomOffset = Math.random() * (bandwidth * 0.6) + (bandwidth * 0.2); 
+            const angle = startAngle + randomOffset;
+            const r = radiusScale(d.distance);
+
+            return {
+                ...d,
+                x: Math.sin(angle) * r,
+                y: -Math.cos(angle) * r
+            };
+        });
+
+        // 8. 绘制连线
+        svg.selectAll(".link")
+            .data(processedData)
+            .enter()
+            .append("line")
+            .attr("x1", 0)
+            .attr("y1", 0)
+            .attr("x2", d => d.x)
+            .attr("y2", d => d.y)
+            .attr("stroke", d => colorScale(d.gender))
+            .attr("stroke-width", 1)
+            .attr("opacity", 0.4)
+            // 如果联系为true则实线，否则虚线
+            .attr("stroke-dasharray", d => d.contact ? "0" : "4,4");
+
+        // 9. 绘制朋友节点（星球）
+        const nodes = svg.selectAll(".node")
+            .data(processedData)
+            .enter()
+            .append("circle")
+            .attr("cx", d => d.x)
+            .attr("cy", d => d.y)
+            .attr("r", d => d.distance < 20 ? 12 : 8) // 越近的球越大
+            .attr("fill", d => colorScale(d.gender))
+            .style("filter", "url(#glow)")
+            .style("cursor", "pointer")
+            .style("opacity", 0.9);
+
+        // 10. 交互逻辑 (Tooltip)
+        const tooltip = d3.select("#tooltip");
+
+        nodes.on("mouseover", function(event, d) {
+            // 放大效果
+            d3.select(this).transition().duration(200).attr("r", d.distance < 20 ? 16 : 12);
+            
+            // 显示Tooltip
+            tooltip.style("opacity", 1)
+                .style("left", (event.pageX) + "px")
+                .style("top", (event.pageY) + "px")
+                .html(`
+                    <h3>${d.name}</h3>
+                    <div class="meta">${d.stage} · ${d.gender} · ${d.contact ? "保持联系" : "暂无联系"}</div>
+                    <p>“${d.story}”</p>
+                `);
+        })
+        .on("mouseout", function(event, d) {
+            // 恢复大小
+            d3.select(this).transition().duration(200).attr("r", d.distance < 20 ? 12 : 8);
+            
+            // 隐藏Tooltip
+            tooltip.style("opacity", 0);
+        });
+
+        // 添加简单的入场动画
+        nodes.attr("r", 0)
+             .transition()
+             .duration(1000)
+             .attr("r", d => d.distance < 20 ? 12 : 8);
+
+    </script>
+</body>
+</html>
