@@ -2,294 +2,463 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的星系引力图</title>
-    <!-- 引入 D3.js 可视化库 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>我的星系引力图 V2.0</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
+        /* --- 基础样式 --- */
         body {
             margin: 0;
-            background-color: #0b0c10; /* 深空黑 */
+            background-color: #0b0c10;
             font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
-            overflow: hidden;
+            overflow: hidden; /* 防止滚动条 */
+            height: 100vh;
+            width: 100vw;
+            color: white;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            color: white;
         }
 
-        /* 背景星星动画 */
+        /* --- 交互控制面板 --- */
+        #controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            padding: 10px 15px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.2);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* 开关样式 */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 20px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #66fcf1; }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        /* --- 背景星星动画 --- */
         .star {
             position: absolute;
             background: white;
             border-radius: 50%;
-            animation: twinkle 2s infinite ease-in-out;
+            pointer-events: none; 
+            animation: twinkle 3s infinite ease-in-out;
         }
-
         @keyframes twinkle {
             0%, 100% { opacity: 0.2; }
             50% { opacity: 1; }
         }
 
-        /* 悬停卡片样式 (磨砂玻璃特效) */
+        /* --- 悬停卡片 (Tooltip) --- */
         #tooltip {
             position: absolute;
             opacity: 0;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(20, 20, 30, 0.85); /* 深色背景更易读 */
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(102, 252, 241, 0.3);
             padding: 15px;
-            border-radius: 12px;
+            border-radius: 8px;
             pointer-events: none;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-            max-width: 250px;
-            transition: all 0.2s ease;
-            transform: translate(-50%, -120%);
-            z-index: 10;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            max-width: 260px;
+            z-index: 20;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            transform: translate(-50%, -110%);
         }
 
         #tooltip h3 {
-            margin: 0 0 5px 0;
-            font-size: 16px;
-            color: #66fcf1; /* 霓虹蓝标题 */
+            margin: 0 0 8px 0;
+            font-size: 18px;
+            color: #66fcf1;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 5px;
         }
         
-        #tooltip .meta {
-            font-size: 12px;
-            color: #c5c6c7;
+        /* 标签胶囊样式 */
+        .tag-container {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
             margin-bottom: 8px;
         }
+        .tag {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.15);
+            color: #eee;
+        }
+        .tag.mbti { background: #4e54c8; }
+        .tag.personality { background: #11998e; }
 
         #tooltip p {
-            margin: 0;
+            margin: 5px 0 0 0;
             font-size: 13px;
-            line-height: 1.5;
-            color: #fff;
+            line-height: 1.6;
+            color: #ddd;
+            font-style: italic;
+        }
+
+        /* 移动端优化 */
+        @media (max-width: 600px) {
+            #tooltip {
+                width: 80%;
+                max-width: none;
+                /* 移动端固定在底部显示，防止遮挡 */
+                top: auto !important;
+                bottom: 20px !important;
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+            }
         }
     </style>
 </head>
 <body>
 
-    <!-- 悬浮提示框 -->
+    <!-- 1. 控制面板 -->
+    <div id="controls">
+        <span>显示朋友间关系</span>
+        <label class="switch">
+            <input type="checkbox" id="linkToggle" checked>
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <!-- 2. Tooltip 容器 -->
     <div id="tooltip"></div>
+
+    <!-- 3. SVG 容器由 JS 自动生成 -->
 
     <script>
         // ==========================================
-        // 👇 在这里修改你的朋友数据 👇
+        // 🛠️ 数据配置区 (DATA CONFIG)
         // ==========================================
-        
-        // 这里的顺序决定了扇区的排列顺序
-        const stages = ["小学", "初中", "高中", "大学", "研究生", "实习/工作"];
 
+        // 1. 阶段配置：你可以任意增删，这里的顺序决定了图上的扇形顺序
+        // 只要在这里加了名字，图表会自动调整角度，画出新的分区
+        const stages = ["小学", "初中", "高中", "大学", "研究生", "实习", "社团", "其他"];
+
+        // 2. 朋友数据：新增 mbti 和 personality (允许为空)
         const friendsData = [
-            // 格式：{ 姓名, 阶段, 亲密距离(越小越近), 是否联系(true/false), 性别(男/女), 故事 }
+            // 核心好友
+            { name: "好室友A", stage: "研究生", distance: 15, contact: true, gender: "女", mbti: "ENFP", personality: "快乐小狗", story: "研一最崩溃的时候陪我通宵改论文，还给我煮面吃。" },
+            { name: "发小F", stage: "小学", distance: 10, contact: true, gender: "女", mbti: "", personality: "避风港", story: "认识20年了，甚至不需要说话就知道对方在想什么。" },
             
-            // --- 研究生阶段 ---
-            { name: "好室友A", stage: "研究生", distance: 15, contact: true, gender: "女", story: "研一最崩溃的时候陪我通宵改论文，还给我煮面吃。" },
-            { name: "师兄B", stage: "研究生", distance: 40, contact: true, gender: "男", story: "带我入门实验室的大神，虽然毕业了但依然会指导我。" },
+            // 重要伙伴
+            { name: "师兄B", stage: "研究生", distance: 35, contact: true, gender: "男", mbti: "INTJ", personality: "严谨导师", story: "带我入门的大神，虽然毕业了但依然会指导我。" },
+            { name: "小花", stage: "大学", distance: 25, contact: true, gender: "女", mbti: "ISFJ", personality: "", story: "大学四年的饭搭子，也是我的情感垃圾桶。" },
+            { name: "社长C", stage: "社团", distance: 60, contact: false, gender: "男", mbti: "ENTJ", personality: "领导者", story: "曾经一起办过最大的活动，教会我什么是领导力。" },
+            { name: "同桌D", stage: "高中", distance: 30, contact: true, gender: "女", mbti: "", personality: "", story: "晚自习一起看星星，虽然异地但心很近。" },
+            
+            // 其他来源
+            { name: "Mentor E", stage: "实习", distance: 45, contact: true, gender: "女", mbti: "INFJ", personality: "知心姐姐", story: "我的职场引路人。" },
+            { name: "网友G", stage: "其他", distance: 70, contact: true, gender: "男", mbti: "INTP", personality: "二次元", story: "因为打游戏认识的，很聊得来。" },
+        ];
 
-            // --- 大学阶段 ---
-            { name: "小花", stage: "大学", distance: 20, contact: true, gender: "女", story: "大学四年的饭搭子，也是也是我的情感垃圾桶。" },
-            { name: "社长C", stage: "大学", distance: 60, contact: false, gender: "男", story: "曾经一起办过最大的活动，教会我什么是领导力。" },
-
-            // --- 高中阶段 ---
-            { name: "同桌D", stage: "高中", distance: 30, contact: true, gender: "女", story: "那个陪我晚自习逃课看星星的人，虽然异地但心很近。" },
-            { name: "老班", stage: "高中", distance: 80, contact: false, gender: "男", story: "虽然很凶，但是唯一一个劝我不要放弃数学的人。" },
-            
-            // --- 实习阶段 ---
-            { name: "Mentor E", stage: "实习/工作", distance: 50, contact: true, gender: "女", story: "我的职场引路人，非常有气质的姐姐。" },
-            
-             // --- 初中/小学 ---
-            { name: "发小F", stage: "小学", distance: 10, contact: true, gender: "女", story: "认识20年了，甚至不需要说话就知道对方在想什么。" },
+        // 3. 朋友间的关系连线数据 (新增功能)
+        // 必须确保 source 和 target 的名字在上面的 friendsData 里能找到
+        const relationshipData = [
+            { source: "好室友A", target: "师兄B", type: "同门" },
+            { source: "小花", target: "社长C", type: "前任" },
+            { source: "好室友A", target: "小花", type: "介绍认识" } 
         ];
 
         // ==========================================
-        // 👆 修改结束，下面是生成逻辑，无需修改 👆
+        // 🚀 核心代码逻辑 (CORE LOGIC)
         // ==========================================
 
-        // 1. 创建星空背景
+        let svg, width, height;
+
+        // 生成背景星星
         function createStars() {
-            for(let i=0; i<100; i++) {
+            document.querySelectorAll('.star').forEach(e => e.remove());
+            for(let i=0; i<80; i++) {
                 const star = document.createElement('div');
                 star.className = 'star';
-                star.style.width = Math.random() * 3 + 'px';
+                star.style.width = Math.random() * 2 + 'px';
                 star.style.height = star.style.width;
                 star.style.left = Math.random() * 100 + 'vw';
                 star.style.top = Math.random() * 100 + 'vh';
-                star.style.animationDuration = (Math.random() * 3 + 1) + 's';
+                star.style.animationDuration = (Math.random() * 3 + 2) + 's';
                 document.body.appendChild(star);
             }
         }
-        createStars();
 
-        // 2. 设置画布尺寸
-        const width = window.innerWidth;
-        const height = window.innerHeight;
-        const centerX = width / 2;
-        const centerY = height / 2;
-        // 半径：留出一些边距
-        const maxRadius = Math.min(width, height) / 2 - 80; 
+        // 主绘图函数
+        function drawChart() {
+            // 1. 清理旧图表
+            d3.select("svg").remove();
 
-        // 创建 SVG 容器
-        const svg = d3.select("body").append("svg")
-            .attr("width", width)
-            .attr("height", height)
-            .append("g")
-            .attr("transform", `translate(${centerX},${centerY})`);
-
-        // 3. 定义比例尺
-        // 角度比例尺：把阶段映射到角度 (0 到 2*PI)
-        const angleScale = d3.scaleBand()
-            .domain(stages)
-            .range([0, 2 * Math.PI])
-            .align(0);
-
-        // 半径比例尺：把亲密度(0-100)映射到像素距离
-        // 0是圆心，100是边缘
-        const radiusScale = d3.scaleLinear()
-            .domain([0, 100])
-            .range([50, maxRadius]); // 50是为了不和中间的“我”重叠
-
-        // 颜色映射
-        const colorScale = (gender) => gender === "女" ? "#ff4d94" : "#00d2ff";
-
-        // 4. 定义发光滤镜 (Glow Filter)
-        const defs = svg.append("defs");
-        const filter = defs.append("filter")
-            .attr("id", "glow");
-        filter.append("feGaussianBlur")
-            .attr("stdDeviation", "2.5")
-            .attr("result", "coloredBlur");
-        const feMerge = filter.append("feMerge");
-        feMerge.append("feMergeNode").attr("in", "coloredBlur");
-        feMerge.append("feMergeNode").attr("in", "SourceGraphic");
-
-        // 5. 绘制扇区辅助线和标签
-        stages.forEach(stage => {
-            const angle = angleScale(stage) + angleScale.bandwidth() / 2; // 扇区中心角度
-            const labelRadius = maxRadius + 30;
+            // 2. 获取当前窗口尺寸（实现响应式）
+            width = window.innerWidth;
+            height = window.innerHeight;
+            const centerX = width / 2;
+            const centerY = height / 2;
             
-            // 转换极坐标到笛卡尔坐标
-            const x = Math.sin(angle) * maxRadius;
-            const y = -Math.cos(angle) * maxRadius;
-            const labelX = Math.sin(angle) * labelRadius;
-            const labelY = -Math.cos(angle) * labelRadius;
+            // 动态计算最大半径：确保在手机竖屏时也能放下
+            // 减去一些padding防止边缘溢出
+            const maxRadius = Math.min(width, height) / 2 - 50; 
 
-            // 画分割虚线 (可选，像草图那样)
-            // 这里我们画扇区的边界线
-            const startAngle = angleScale(stage);
-            const lineX = Math.sin(startAngle) * maxRadius;
-            const lineY = -Math.cos(startAngle) * maxRadius;
+            svg = d3.select("body").append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .append("g")
+                .attr("transform", `translate(${centerX},${centerY})`);
+
+            // 3. 比例尺定义
+            const angleScale = d3.scaleBand()
+                .domain(stages) // 动态使用所有阶段
+                .range([0, 2 * Math.PI])
+                .align(0);
+
+            const radiusScale = d3.scaleLinear()
+                .domain([0, 100])
+                .range([40, maxRadius]); // 40px 是留给中心“我”的区域
+
+            const colorScale = (gender) => gender === "女" ? "#ff4d94" : "#00d2ff";
+
+            // 4. 添加滤镜
+            const defs = svg.append("defs");
+            const filter = defs.append("filter").attr("id", "glow");
+            filter.append("feGaussianBlur").attr("stdDeviation", "2.5").attr("result", "coloredBlur");
+            const feMerge = filter.append("feMerge");
+            feMerge.append("feMergeNode").attr("in", "coloredBlur");
+            feMerge.append("feMergeNode").attr("in", "SourceGraphic");
+
+            // 5. 绘制扇区辅助线和标签
+            stages.forEach(stage => {
+                const angle = angleScale(stage) + angleScale.bandwidth() / 2;
+                // 让标签稍微往外一点
+                const labelRadius = maxRadius + 20;
+                
+                const labelX = Math.sin(angle) * labelRadius;
+                const labelY = -Math.cos(angle) * labelRadius;
+
+                // 绘制分隔线 (Start Angle)
+                const startAngle = angleScale(stage);
+                const lineX = Math.sin(startAngle) * maxRadius;
+                const lineY = -Math.cos(startAngle) * maxRadius;
+                
+                svg.append("line")
+                    .attr("x1", 0).attr("y1", 0)
+                    .attr("x2", lineX).attr("y2", lineY)
+                    .attr("stroke", "rgba(255,255,255,0.08)")
+                    .attr("stroke-dasharray", "4,4");
+
+                // 绘制文字
+                svg.append("text")
+                    .attr("x", labelX)
+                    .attr("y", labelY)
+                    .attr("text-anchor", "middle")
+                    .attr("dominant-baseline", "middle")
+                    .attr("fill", "#888")
+                    .attr("font-size", Math.min(width, height) < 600 ? "10px" : "14px") // 手机端字体变小
+                    .text(stage);
+            });
+
+            // 6. 预计算坐标 (包含随机偏移)
+            // 我们需要把坐标存下来，以便后面画朋友间的连线
+            const nodePositions = {}; // 存储 {name: {x, y}}
+
+            const processedData = friendsData.map(d => {
+                const bandwidth = angleScale.bandwidth();
+                const startAngle = angleScale(d.stage);
+                
+                // 简单的伪随机哈希，保证刷新页面时位置不变，但每个人位置不同
+                // 如果想要每次刷新都变，用 Math.random()
+                let seed = 0;
+                for(let i=0; i<d.name.length; i++) seed += d.name.charCodeAt(i);
+                const randomOffset = (seed % 100 / 100) * (bandwidth * 0.6) + (bandwidth * 0.2);
+                
+                const angle = startAngle + randomOffset;
+                const r = radiusScale(d.distance);
+                
+                const x = Math.sin(angle) * r;
+                const y = -Math.cos(angle) * r;
+
+                // 存入位置字典
+                nodePositions[d.name] = { x, y };
+
+                return { ...d, x, y };
+            });
+
+            // 7. 绘制“朋友间”的关系线 (Feature 4)
+            const relationsGroup = svg.append("g").attr("id", "relation-lines");
             
-            svg.append("line")
-                .attr("x1", 0)
-                .attr("y1", 0)
-                .attr("x2", lineX)
-                .attr("y2", lineY)
-                .attr("stroke", "rgba(255,255,255,0.1)")
-                .attr("stroke-dasharray", "4,4");
+            relationshipData.forEach(rel => {
+                const p1 = nodePositions[rel.source];
+                const p2 = nodePositions[rel.target];
 
-            // 添加阶段文字标签
+                if (p1 && p2) {
+                    relationsGroup.append("line")
+                        .attr("x1", p1.x).attr("y1", p1.y)
+                        .attr("x2", p2.x).attr("y2", p2.y)
+                        .attr("stroke", "#ffeaa7") // 淡黄色
+                        .attr("stroke-width", 1)
+                        .attr("stroke-dasharray", "5, 2, 1, 2") // 点画线样式
+                        .attr("opacity", 0.6);
+                }
+            });
+
+            // 检查初始开关状态
+            const isLinksVisible = document.getElementById('linkToggle').checked;
+            relationsGroup.style("opacity", isLinksVisible ? 1 : 0);
+
+            // 8. 绘制连向圆心的线
+            svg.selectAll(".link-to-center")
+                .data(processedData)
+                .enter()
+                .append("line")
+                .attr("x1", 0).attr("y1", 0)
+                .attr("x2", d => d.x).attr("y2", d => d.y)
+                .attr("stroke", d => colorScale(d.gender))
+                .attr("stroke-width", 1)
+                .attr("opacity", 0.3)
+                .attr("stroke-dasharray", d => d.contact ? "0" : "3,3");
+
+            // 9. 绘制圆心（我）
+            svg.append("circle")
+                .attr("r", Math.min(width, height) < 600 ? 12 : 16)
+                .attr("fill", "#ffd700")
+                .style("filter", "url(#glow)");
+            
             svg.append("text")
-                .attr("x", labelX)
-                .attr("y", labelY)
+                .attr("y", Math.min(width, height) < 600 ? 28 : 35)
                 .attr("text-anchor", "middle")
-                .attr("dominant-baseline", "middle")
-                .attr("fill", "#888")
-                .attr("font-size", "14px")
-                .text(stage);
+                .attr("fill", "#ffd700")
+                .attr("font-size", "12px")
+                .text("我");
+
+            // 10. 绘制朋友节点
+            const tooltip = d3.select("#tooltip");
+
+            const nodes = svg.selectAll(".node")
+                .data(processedData)
+                .enter()
+                .append("circle")
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y)
+                .attr("r", d => d.distance < 20 ? (Math.min(width, height) < 600 ? 10 : 14) : (Math.min(width, height) < 600 ? 6 : 9))
+                .attr("fill", d => colorScale(d.gender))
+                .style("filter", "url(#glow)")
+                .style("cursor", "pointer")
+                .style("stroke", "white")
+                .style("stroke-width", "1.5px")
+                .style("stroke-opacity", 0); // 默认不显示描边
+
+            // 11. 交互事件
+            nodes.on("mouseover", function(event, d) {
+                // 高亮选中点
+                d3.select(this)
+                    .transition().duration(200)
+                    .attr("r", 20)
+                    .style("stroke-opacity", 0.8);
+
+                // 构建 Tooltip 内容 (处理空值)
+                let htmlContent = `<h3>${d.name}</h3>`;
+                
+                // 标签区
+                htmlContent += `<div class="tag-container">`;
+                htmlContent += `<span class="tag">${d.stage}</span>`;
+                if(d.mbti) htmlContent += `<span class="tag mbti">${d.mbti}</span>`;
+                if(d.personality) htmlContent += `<span class="tag personality">${d.personality}</span>`;
+                htmlContent += `</div>`;
+
+                htmlContent += `<div style="font-size:12px; color:#aaa; margin-bottom:5px;">${d.gender} · ${d.contact ? "保持联系" : "暂无联系"}</div>`;
+                htmlContent += `<p>“${d.story}”</p>`;
+
+                tooltip.html(htmlContent)
+                    .style("opacity", 1);
+                
+                // 移动端不需要跟随鼠标，由CSS控制位置
+                // 只有非移动端才跟随鼠标
+                if (window.innerWidth > 600) {
+                     tooltip.style("left", (event.pageX) + "px")
+                            .style("top", (event.pageY) + "px");
+                }
+            })
+            .on("mousemove", function(event) {
+                 if (window.innerWidth > 600) {
+                     tooltip.style("left", (event.pageX) + "px")
+                            .style("top", (event.pageY) + "px");
+                 }
+            })
+            .on("mouseout", function(event, d) {
+                // 恢复原状
+                const originalR = d.distance < 20 ? (Math.min(width, height) < 600 ? 10 : 14) : (Math.min(width, height) < 600 ? 6 : 9);
+                d3.select(this)
+                    .transition().duration(200)
+                    .attr("r", originalR)
+                    .style("stroke-opacity", 0);
+                
+                tooltip.style("opacity", 0);
+            });
+
+            // 入场动画
+            nodes.attr("r", 0)
+                 .transition()
+                 .duration(1000)
+                 .attr("r", d => d.distance < 20 ? (Math.min(width, height) < 600 ? 10 : 14) : (Math.min(width, height) < 600 ? 6 : 9));
+        }
+
+        // ==========================================
+        // 🎮 初始化与事件监听
+        // ==========================================
+
+        // 1. 初始化
+        createStars();
+        drawChart();
+
+        // 2. 监听窗口大小变化 (响应式适配)
+        let resizeTimer;
+        window.addEventListener("resize", () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                createStars(); // 重做背景
+                drawChart();   // 重画图表
+            }, 200);
         });
 
-        // 6. 绘制圆心（我）
-        svg.append("circle")
-            .attr("r", 15)
-            .attr("fill", "#ffd700") // 金色
-            .style("filter", "url(#glow)")
-            .style("cursor", "pointer");
-        
-        svg.append("text")
-            .attr("y", 35)
-            .attr("text-anchor", "middle")
-            .attr("fill", "#ffd700")
-            .attr("font-size", "12px")
-            .text("我");
-
-        // 7. 处理数据位置
-        // 为了防止点重叠，我们在计算角度时，加上一点随机偏移量
-        const processedData = friendsData.map(d => {
-            const bandwidth = angleScale.bandwidth();
-            const startAngle = angleScale(d.stage);
-            // 在扇区范围内随机偏移，保留两边边距
-            const randomOffset = Math.random() * (bandwidth * 0.6) + (bandwidth * 0.2); 
-            const angle = startAngle + randomOffset;
-            const r = radiusScale(d.distance);
-
-            return {
-                ...d,
-                x: Math.sin(angle) * r,
-                y: -Math.cos(angle) * r
-            };
+        // 3. 监听开关控制 (朋友间连线)
+        document.getElementById('linkToggle').addEventListener('change', function(e) {
+            const relationGroup = d3.select("#relation-lines");
+            if(e.target.checked) {
+                relationGroup.transition().duration(500).style("opacity", 1);
+            } else {
+                relationGroup.transition().duration(500).style("opacity", 0);
+            }
         });
-
-        // 8. 绘制连线
-        svg.selectAll(".link")
-            .data(processedData)
-            .enter()
-            .append("line")
-            .attr("x1", 0)
-            .attr("y1", 0)
-            .attr("x2", d => d.x)
-            .attr("y2", d => d.y)
-            .attr("stroke", d => colorScale(d.gender))
-            .attr("stroke-width", 1)
-            .attr("opacity", 0.4)
-            // 如果联系为true则实线，否则虚线
-            .attr("stroke-dasharray", d => d.contact ? "0" : "4,4");
-
-        // 9. 绘制朋友节点（星球）
-        const nodes = svg.selectAll(".node")
-            .data(processedData)
-            .enter()
-            .append("circle")
-            .attr("cx", d => d.x)
-            .attr("cy", d => d.y)
-            .attr("r", d => d.distance < 20 ? 12 : 8) // 越近的球越大
-            .attr("fill", d => colorScale(d.gender))
-            .style("filter", "url(#glow)")
-            .style("cursor", "pointer")
-            .style("opacity", 0.9);
-
-        // 10. 交互逻辑 (Tooltip)
-        const tooltip = d3.select("#tooltip");
-
-        nodes.on("mouseover", function(event, d) {
-            // 放大效果
-            d3.select(this).transition().duration(200).attr("r", d.distance < 20 ? 16 : 12);
-            
-            // 显示Tooltip
-            tooltip.style("opacity", 1)
-                .style("left", (event.pageX) + "px")
-                .style("top", (event.pageY) + "px")
-                .html(`
-                    <h3>${d.name}</h3>
-                    <div class="meta">${d.stage} · ${d.gender} · ${d.contact ? "保持联系" : "暂无联系"}</div>
-                    <p>“${d.story}”</p>
-                `);
-        })
-        .on("mouseout", function(event, d) {
-            // 恢复大小
-            d3.select(this).transition().duration(200).attr("r", d.distance < 20 ? 12 : 8);
-            
-            // 隐藏Tooltip
-            tooltip.style("opacity", 0);
-        });
-
-        // 添加简单的入场动画
-        nodes.attr("r", 0)
-             .transition()
-             .duration(1000)
-             .attr("r", d => d.distance < 20 ? 12 : 8);
 
     </script>
 </body>
