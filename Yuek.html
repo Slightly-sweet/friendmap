@@ -3,55 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>我的星系引力图 Pro</title>
+    <title>我的星系引力图 V2.0</title>
+    <!-- 引入 D3.js -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         body {
             margin: 0;
             background-color: #0b0c10;
-            font-family: 'PingFang SC', sans-serif;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
             overflow: hidden;
-            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             height: 100vh;
             color: white;
-            position: relative;
         }
 
-        /* 顶部控制栏 */
-        .controls {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 100;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(5px);
-            padding: 10px 15px;
-            border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.2);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .switch-label {
-            font-size: 14px;
-            cursor: pointer;
-            user-select: none;
-            display: flex;
-            align-items: center;
-        }
-        
-        input[type="checkbox"] {
-            margin-right: 8px;
-            accent-color: #66fcf1;
-            cursor: pointer;
-        }
-
-        /* 悬浮提示框 (自动适配内容高度) */
+        /* 悬停卡片 */
         #tooltip {
             position: absolute;
             opacity: 0;
-            background: rgba(16, 20, 30, 0.85);
+            background: rgba(16, 20, 30, 0.85); /* 深色背景更清晰 */
             backdrop-filter: blur(12px);
             border: 1px solid rgba(102, 252, 241, 0.3);
             padding: 15px;
@@ -59,196 +31,378 @@
             pointer-events: none;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
             max-width: 260px;
-            transition: opacity 0.2s ease, transform 0.2s ease;
             z-index: 20;
+            transition: opacity 0.2s ease, transform 0.2s ease;
             transform: translate(-50%, -110%);
         }
+        #tooltip h3 { margin: 0 0 5px 0; color: #66fcf1; font-size: 1.1em; }
+        #tooltip .tags { display: flex; gap: 5px; margin-bottom: 8px; flex-wrap: wrap; }
+        #tooltip .tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.1); color: #c5c6c7; }
+        #tooltip p { margin: 0; font-size: 0.9em; line-height: 1.5; color: #fff; }
 
-        #tooltip h3 { margin: 0 0 5px 0; font-size: 16px; color: #66fcf1; }
-        #tooltip .tags { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px; }
-        #tooltip .tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.1); color: #ccc; }
-        #tooltip p { margin: 5px 0 0 0; font-size: 12px; line-height: 1.5; color: #fff; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 5px; }
-
-        /* 连线文字背景，防止太乱看不清 */
-        .link-label-bg {
-            fill: #0b0c10;
-            opacity: 0.8;
+        /* 控制面板开关 */
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 15px;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            border: 1px solid rgba(255,255,255,0.2);
         }
+        
+        /* 开关样式 */
+        .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 20px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #66fcf1; }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        /* 星星背景 */
+        .star { position: absolute; background: white; border-radius: 50%; opacity: 0.5; animation: twinkle 3s infinite; }
+        @keyframes twinkle { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.8; } }
     </style>
 </head>
 <body>
 
+    <!-- 悬浮提示 -->
+    <div id="tooltip"></div>
+
     <!-- 控制面板 -->
     <div class="controls">
-        <label class="switch-label">
-            <input type="checkbox" id="toggleLinks" checked>
-            显示朋友间关系
+        <span>显示人物关系网</span>
+        <label class="switch">
+            <input type="checkbox" id="toggleRelations" checked>
+            <span class="slider"></span>
         </label>
     </div>
 
-    <div id="tooltip"></div>
-
     <script>
         // ==========================================
-        // 👇 配置区域：请在这里填入你的数据 👇
+        // 🛠️ 数据配置区域 (请修改这里)
         // ==========================================
 
-        // 1. 阶段排序（你可以随意增加、减少、改名，顺序决定了扇区的位置）
-        // 只有这里出现的阶段，才会在图上显示。
-        const stageOrder = ["小学", "初中", "高中", "大学", "研究生", "实习", "社团", "网友"];
+        // 1. 阶段排序设置 (没写在这里的阶段会自动归类到最后)
+        // 这里控制了扇形排列的顺序
+        const customOrder = ["小学", "初中", "高中", "大学", "研究生", "实习", "社团", "网友"];
 
-        // 2. 朋友数据 (Nodes)
-        // 必填：id (唯一标识), name, stage, distance (0-100), gender
-        // 选填：mbti, personality, story, contact (默认true)
+        // 2. 朋友数据清单
+        // mbti 和 personality 如果没有，可以留空字符串 "" 或者 null
         const friendsData = [
-            { id: "a1", name: "A君", stage: "研究生", distance: 15, gender: "女", mbti: "ENFP", personality: "快乐小狗", story: "也是我们friend map计划的执行人！" },
-            { id: "b1", name: "B师兄", stage: "研究生", distance: 40, gender: "男", mbti: "INTJ", personality: null, story: "带我做科研的大神" }, // personality 为空也没事
-            { id: "c1", name: "C同学", stage: "大学", distance: 20, gender: "女", story: "本科室友，一起逃过课" },
-            { id: "d1", name: "D同桌", stage: "高中", distance: 30, gender: "女", mbti: "ISFJ", story: "高中三年同桌" },
-            { id: "e1", name: "E老班", stage: "高中", distance: 80, gender: "男", contact: false, story: "很严厉但负责的老师" },
-            { id: "f1", name: "F网友", stage: "网友", distance: 50, gender: "男", story: "打游戏认识的" },
-            { id: "g1", name: "G同事", stage: "实习", distance: 45, gender: "女", story: "教我Excel" },
-            // 为了测试重叠，故意加几个距离相似的
-            { id: "x1", name: "X君", stage: "研究生", distance: 15, gender: "女", story: "测试重叠1" },
-            { id: "x2", name: "Y君", stage: "研究生", distance: 15, gender: "女", story: "测试重叠2" },
+            { id: "A01", name: "小A", stage: "研究生", distance: 15, contact: true, gender: "女", mbti: "ENFP", personality: "快乐小狗", story: "研一最崩溃的时候陪我通宵改论文，还给我煮面吃。" },
+            { id: "A02", name: "师兄B", stage: "研究生", distance: 40, contact: true, gender: "男", mbti: "INTJ", personality: "高冷毒舌", story: "带我入门实验室的大神，虽然毕业了但依然会指导我。" },
+            { id: "B01", name: "小花", stage: "大学", distance: 20, contact: true, gender: "女", mbti: "", personality: "温柔倾听", story: "大学四年的饭搭子，也是我的情感垃圾桶。" },
+            { id: "B02", name: "社长C", stage: "大学", distance: 60, contact: false, gender: "男", mbti: "ENTJ", personality: "", story: "曾经一起办过最大的活动，教会我什么是领导力。" },
+            { id: "C01", name: "同桌D", stage: "高中", distance: 30, contact: true, gender: "女", mbti: "ISFP", personality: "艺术气质", story: "陪我逃晚自习看星星的人。" },
+            { id: "C02", name: "老班", stage: "高中", distance: 80, contact: false, gender: "男", mbti: "", personality: "严厉", story: "唯一劝我不要放弃数学的人。" },
+            { id: "D01", name: "Mentor E", stage: "实习", distance: 50, contact: true, gender: "女", mbti: "ESTJ", personality: "雷厉风行", story: "职场引路人。" },
+            { id: "E01", name: "发小F", stage: "小学", distance: 10, contact: true, gender: "女", mbti: "INFP", personality: "治愈系", story: "认识20年了，不需要说话就知道对方在想什么。" },
+            { id: "F01", name: "驴友G", stage: "网友", distance: 45, contact: false, gender: "男", mbti: "", personality: "幽默", story: "一起去过西藏，生死之交。" },
         ];
 
-        // 3. 朋友间的关系 (Links)
-        // source: 起始人id, target: 目标人id, label: 关系名
-        // type: "arrow" (带箭头单向), "dashed" (虚线无方向), "solid" (实线无方向)
-        const interLinksData = [
-            { source: "a1", target: "b1", label: "师兄妹", type: "arrow" },
-            { source: "c1", target: "d1", label: "竟然认识", type: "dashed" },
-            { source: "x1", target: "x2", label: "双胞胎", type: "solid" }
+        // 3. 朋友间的关系连线 (高级功能)
+        // source 和 target 必须填上面的 name (姓名)
+        const relationsData = [
+            { source: "小A", target: "师兄B", label: "欢喜冤家", type: "dotted", arrow: false },
+            { source: "小花", target: "社长C", label: "前任", type: "solid", arrow: true }, 
+            { source: "小A", target: "小花", label: "介绍认识", type: "dashed", arrow: true } 
         ];
 
         // ==========================================
-        // 👆 配置结束，下方代码负责自动计算和绘图 👆
+        // ⚙️ 核心代码逻辑 (无需修改)
         // ==========================================
 
-        const container = d3.select("body");
-        let svg, width, height, centerX, centerY, maxRadius;
+        // 1. 初始化画布与响应式设置
+        function init() {
+            // 清空旧图 (用于Resize时重绘)
+            d3.select("body").selectAll("svg").remove();
 
-        // 初始化 SVG
-        function initSVG() {
-            container.select("svg").remove();
-            width = window.innerWidth;
-            height = window.innerHeight;
-            centerX = width / 2;
-            centerY = height / 2;
-            // 适配手机：如果屏幕窄，半径就小一点
-            maxRadius = Math.min(width, height) / 2 - (width < 600 ? 40 : 100);
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            // 响应式半径：取长宽较小值的45%作为最大半径，保证不超出屏幕
+            const maxRadius = Math.min(width, height) * 0.45;
+            const centerRadius = 20; // 中心的“我”的大小
 
-            svg = container.append("svg")
+            const svg = d3.select("body").append("svg")
                 .attr("width", width)
                 .attr("height", height)
-                .attr("viewBox", `0 0 ${width} ${height}`)
-                .append("g")
-                .attr("transform", `translate(${centerX},${centerY})`);
+                .attr("viewBox", [ -width / 2, -height / 2, width, height ]) // 居中坐标系
+                .style("max-width", "100%")
+                .style("height", "auto");
 
-            drawGraph();
-        }
+            const mainG = svg.append("g"); // 主容器
 
-        function drawGraph() {
-            // --- 1. 计算动态扇区角度 ---
+            // 定义箭头标记 (Marker)
+            const defs = svg.append("defs");
+            defs.append("marker")
+                .attr("id", "arrow")
+                .attr("viewBox", "0 -5 10 10")
+                .attr("refX", 18) // 箭头位置微调
+                .attr("refY", 0)
+                .attr("markerWidth", 6)
+                .attr("markerHeight", 6)
+                .attr("orient", "auto")
+                .append("path")
+                .attr("d", "M0,-5L10,0L0,5")
+                .attr("fill", "#66fcf1");
+
+            // 定义发光滤镜
+            const filter = defs.append("filter").attr("id", "glow");
+            filter.append("feGaussianBlur").attr("stdDeviation", "2.5").attr("result", "coloredBlur");
+            const feMerge = filter.append("feMerge");
+            feMerge.append("feMergeNode").attr("in", "coloredBlur");
+            feMerge.append("feMergeNode").attr("in", "SourceGraphic");
+
+            // 2. 智能计算扇区角度 (按人数比例)
             // 统计每个阶段的人数
-            const stageCounts = {};
-            stageOrder.forEach(s => stageCounts[s] = 0);
-            friendsData.forEach(d => {
-                if(stageCounts.hasOwnProperty(d.stage)) stageCounts[d.stage]++;
+            const stageCounts = d3.rollups(friendsData, v => v.length, d => d.stage);
+            const stageMap = new Map(stageCounts);
+            
+            // 排序阶段
+            let allStages = Array.from(stageMap.keys());
+            allStages.sort((a, b) => {
+                let ia = customOrder.indexOf(a);
+                let ib = customOrder.indexOf(b);
+                if (ia === -1) ia = 999; 
+                if (ib === -1) ib = 999;
+                return ia - ib;
             });
 
-            const totalNodes = friendsData.length;
-            // 至少给每个扇区保留一个最小角度，防止太窄
-            const minAnglePerStage = Math.PI / 6; // 30度
-            let currentAngle = 0;
-            const stageAngles = {};
+            // 生成饼图数据来分配角度
+            const pie = d3.pie()
+                .value(d => stageMap.get(d)) // 权重：根据人数
+                .sort(null) // 不自动重新排序，按我们整理好的allStages排
+                .padAngle(0.05); // 扇区之间留点缝隙
 
-            // 动态分配角度算法
-            stageOrder.forEach(stage => {
-                const count = stageCounts[stage];
-                // 基础权重 + 人数权重
-                let weight = (count / Math.max(1, totalNodes)) * (Math.PI * 2);
-                // 保证最小宽度
-                if (weight < minAnglePerStage && count > 0) weight = minAnglePerStage;
-                if (count === 0) weight = minAnglePerStage / 2; //即使没人也留一点点空位展示标签
-
-                stageAngles[stage] = {
-                    start: currentAngle,
-                    end: currentAngle + weight,
-                    middle: currentAngle + weight / 2
+            const arcs = pie(allStages);
+            
+            // 建立 阶段 -> 角度范围 的映射
+            const angleMap = {};
+            arcs.forEach(d => {
+                angleMap[d.data] = {
+                    start: d.startAngle,
+                    end: d.endAngle,
+                    mid: (d.startAngle + d.endAngle) / 2
                 };
-                currentAngle += weight;
             });
 
-            // 如果总角度超过2PI，需要压缩（虽然逻辑上会自动适配，但为了严谨）
-            const totalCalcAngle = currentAngle;
-            const scaleFactor = (Math.PI * 2) / totalCalcAngle;
+            // 3. 绘制扇区背景线和文字
+            const sectorG = mainG.append("g").attr("class", "sectors");
             
-            // 重新修正角度
-            let runningAngle = 0;
-            stageOrder.forEach(stage => {
-                const oldStart = stageAngles[stage].start;
-                const oldEnd = stageAngles[stage].end;
-                const span = (oldEnd - oldStart) * scaleFactor;
-                stageAngles[stage].start = runningAngle;
-                stageAngles[stage].end = runningAngle + span;
-                stageAngles[stage].middle = runningAngle + span / 2;
-                runningAngle += span;
-            });
+            arcs.forEach(d => {
+                const r = maxRadius + 30; // 标签距离
+                const midAngle = (d.startAngle + d.endAngle) / 2;
+                // 极坐标转笛卡尔坐标
+                const labelX = Math.sin(midAngle) * r;
+                const labelY = -Math.cos(midAngle) * r;
 
-
-            // --- 2. 绘制扇区背景和标签 ---
-            const radiusScale = d3.scaleLinear().domain([0, 100]).range([40, maxRadius]);
-            
-            stageOrder.forEach(stage => {
-                const angles = stageAngles[stage];
-                
-                // 绘制分隔线
-                const lineX = Math.sin(angles.start) * maxRadius;
-                const lineY = -Math.cos(angles.start) * maxRadius;
-                
-                svg.append("line")
+                // 画分割线
+                const lineX = Math.sin(d.startAngle) * maxRadius;
+                const lineY = -Math.cos(d.startAngle) * maxRadius;
+                sectorG.append("line")
                     .attr("x1", 0).attr("y1", 0)
                     .attr("x2", lineX).attr("y2", lineY)
-                    .attr("stroke", "rgba(255,255,255,0.05)")
+                    .attr("stroke", "rgba(255,255,255,0.08)")
                     .attr("stroke-dasharray", "4,4");
 
-                // 绘制标签
-                const labelRadius = maxRadius + 20;
-                const labelX = Math.sin(angles.middle) * labelRadius;
-                const labelY = -Math.cos(angles.middle) * labelRadius;
-                
-                // 标签旋转逻辑（防止文字倒着）
-                let rotation = (angles.middle * 180 / Math.PI);
-                if (rotation > 180) rotation -= 360; 
-                
-                svg.append("text")
+                // 阶段文字
+                sectorG.append("text")
                     .attr("x", labelX)
                     .attr("y", labelY)
                     .attr("text-anchor", "middle")
                     .attr("dominant-baseline", "middle")
-                    .attr("fill", "#666")
-                    .attr("font-size", width < 600 ? "10px" : "12px")
-                    .text(stage);
+                    .attr("fill", "#888")
+                    .attr("font-size", "14px")
+                    .text(d.data);
             });
 
+            // 4. 计算每个节点的理想位置 (极坐标)
+            const radiusScale = d3.scaleLinear()
+                .domain([0, 100])
+                .range([centerRadius + 20, maxRadius]);
 
-            // --- 3. 物理引擎：计算节点位置并防重叠 ---
-            
-            // 预计算理想位置
-            friendsData.forEach(d => {
-                const angles = stageAngles[d.stage];
-                if(!angles) return; // 防止数据里的阶段不在配置表中
-                
-                // 初始给一个随机偏移，避免所有人都在正中间
-                const randomSpread = (angles.end - angles.start) * 0.6;
-                const angle = angles.start + (angles.end - angles.start) * 0.2 + Math.random() * randomSpread;
+            const nodes = friendsData.map(d => {
+                const angleInfo = angleMap[d.stage];
+                // 初始角度设为扇区中间，带一点点随机防止完全重叠
+                const angle = angleInfo.mid + (Math.random() - 0.5) * 0.1;
                 const r = radiusScale(d.distance);
+                
+                // 计算目标极坐标位置
+                const targetX = Math.sin(angle) * r;
+                const targetY = -Math.cos(angle) * r;
 
-                // 记录“理想目标点”
-                d.targetX = Math.sin(angle) * r;
-                d.targetY = -Math.cos(angle) * r;
-                d.x = d.targetX; // 初始位置
-                d.y = d.targetY;
-                d.r = d.distance < 20 ? 12 :
+                return {
+                    ...d,
+                    x: targetX, // 初始位置
+                    y: targetY,
+                    targetX: targetX, // 物理引擎的目标位置
+                    targetY: targetY,
+                    r: r, // 极径
+                    radius: d.distance < 20 ? 14 : 9 // 碰撞半径(球体大小)
+                };
+            });
+
+            // 5. 物理引擎防止重叠 (Force Simulation)
+            // 这一步是为了微调位置，让挤在一起的球分开，但又尽量保持在原来的距离和角度
+            const simulation = d3.forceSimulation(nodes)
+                .force("x", d3.forceX(d => d.targetX).strength(0.5)) // 强力拉向原本该在的位置
+                .force("y", d3.forceY(d => d.targetY).strength(0.5))
+                .force("collide", d3.forceCollide(d => d.radius + 5).iterations(2)) // 碰撞体积
+                .stop();
+
+            // 手动运行多次模拟，直接得到稳定结果，不显示动画过程
+            for (let i = 0; i < 150; i++) simulation.tick();
+
+            // 6. 绘制朋友间的关系网 (Requirement 4)
+            const relationsG = mainG.append("g").attr("class", "relations-layer");
+            
+            // 构建 name -> node 的映射
+            const nameToNode = {};
+            nodes.forEach(n => nameToNode[n.name] = n);
+
+            const validRelations = relationsData.filter(r => nameToNode[r.source] && nameToNode[r.target]);
+
+            const linkPaths = relationsG.selectAll(".rel-link")
+                .data(validRelations)
+                .enter()
+                .append("path")
+                .attr("class", "rel-link")
+                .attr("d", d => {
+                    const s = nameToNode[d.source];
+                    const t = nameToNode[d.target];
+                    return `M${s.x},${s.y} L${t.x},${t.y}`;
+                })
+                .attr("stroke", "#66fcf1")
+                .attr("stroke-width", 1.5)
+                .attr("stroke-opacity", 0.6)
+                .attr("fill", "none")
+                .attr("stroke-dasharray", d => {
+                    if (d.type === 'dotted') return "2,2";
+                    if (d.type === 'dashed') return "6,4";
+                    return "0";
+                })
+                .attr("marker-end", d => d.arrow ? "url(#arrow)" : null);
+
+            // 关系文字标签
+            const linkLabels = relationsG.selectAll(".rel-label")
+                .data(validRelations)
+                .enter()
+                .append("text")
+                .attr("class", "rel-label")
+                .attr("x", d => (nameToNode[d.source].x + nameToNode[d.target].x) / 2)
+                .attr("y", d => (nameToNode[d.source].y + nameToNode[d.target].y) / 2)
+                .attr("text-anchor", "middle")
+                .attr("fill", "#66fcf1")
+                .attr("font-size", "10px")
+                .style("background", "black") // 简单模拟描边效果
+                .text(d => d.label);
+
+
+            // 7. 绘制连线 (连向圆心)
+            const linksG = mainG.append("g").attr("class", "center-links");
+            linksG.selectAll("line")
+                .data(nodes)
+                .enter()
+                .append("line")
+                .attr("x1", 0).attr("y1", 0)
+                .attr("x2", d => d.x).attr("y2", d => d.y)
+                .attr("stroke", d => d.gender === "女" ? "#ff4d94" : "#00d2ff")
+                .attr("stroke-width", 1)
+                .attr("opacity", 0.3)
+                .attr("stroke-dasharray", d => d.contact ? "0" : "4,4");
+
+            // 8. 绘制节点 (星球)
+            const nodesG = mainG.append("g").attr("class", "nodes");
+            const circles = nodesG.selectAll("circle")
+                .data(nodes)
+                .enter()
+                .append("circle")
+                .attr("r", d => d.distance < 20 ? 12 : 7)
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y)
+                .attr("fill", d => d.gender === "女" ? "#ff4d94" : "#00d2ff")
+                .style("filter", "url(#glow)")
+                .style("cursor", "pointer")
+                .attr("stroke", "#fff")
+                .attr("stroke-width", d => d.distance < 20 ? 2 : 0);
+
+            // 9. 绘制圆心 (我)
+            const me = mainG.append("g").style("filter", "url(#glow)");
+            me.append("circle").attr("r", 16).attr("fill", "#ffd700");
+            me.append("text").attr("y", 5).attr("text-anchor", "middle").attr("fill", "#000")
+              .style("font-size", "10px").style("font-weight", "bold").text("我");
+
+            // 10. 交互逻辑
+            const tooltip = d3.select("#tooltip");
+
+            circles.on("mouseover", function(event, d) {
+                d3.select(this).transition().attr("r", 18);
+                
+                // 构建标签HTML
+                let tagsHtml = `<span class="tag">${d.stage}</span>`;
+                if(d.mbti) tagsHtml += `<span class="tag">${d.mbti}</span>`;
+                if(d.personality) tagsHtml += `<span class="tag">${d.personality}</span>`;
+                
+                tooltip.style("opacity", 1)
+                    .html(`
+                        <h3>${d.name} <span style="font-size:0.7em;color:#fff;opacity:0.6">${d.gender}</span></h3>
+                        <div class="tags">${tagsHtml}</div>
+                        <p>“${d.story}”</p>
+                    `);
+            })
+            .on("mousemove", function(event) {
+                // 跟随鼠标
+                tooltip.style("left", (event.pageX) + "px")
+                       .style("top", (event.pageY - 10) + "px");
+            })
+            .on("mouseout", function() {
+                d3.select(this).transition().attr("r", d => d.distance < 20 ? 12 : 7);
+                tooltip.style("opacity", 0);
+            });
+
+            // 11. 关系网开关控制
+            const toggle = document.getElementById('toggleRelations');
+            function updateRelations() {
+                const opacity = toggle.checked ? 1 : 0;
+                relationsG.transition().duration(500).style("opacity", opacity);
+            }
+            toggle.addEventListener('change', updateRelations);
+            updateRelations(); // 初始化
+        }
+
+        // 初始化背景星星
+        function createStars() {
+            for(let i=0; i<150; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                const size = Math.random() * 2;
+                star.style.width = size + 'px';
+                star.style.height = size + 'px';
+                star.style.left = Math.random() * 100 + 'vw';
+                star.style.top = Math.random() * 100 + 'vh';
+                star.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                document.body.appendChild(star);
+            }
+        }
+
+        // 启动
+        createStars();
+        init();
+
+        // 监听窗口大小改变，重新绘制 (防抖动)
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(init, 300);
+        });
+
+    </script>
+</body>
+</html>
