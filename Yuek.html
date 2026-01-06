@@ -91,28 +91,44 @@
 
         // 1. 阶段排序设置 (没写在这里的阶段会自动归类到最后)
         // 这里控制了扇形排列的顺序
-        const customOrder = ["小学", "初中", "高中", "大学", "研究生", "实习", "社团", "网友"];
+        const customOrder = ["初中", "高中", "本科", "硕士", "实习"];
 
         // 2. 朋友数据清单
-        // mbti 和 personality 如果没有，可以留空字符串 "" 或者 null
         const friendsData = [
-            { id: "A01", name: "小A", stage: "研究生", distance: 15, contact: true, gender: "女", mbti: "ENFP", personality: "快乐小狗", story: "研一最崩溃的时候陪我通宵改论文，还给我煮面吃。" },
-            { id: "A02", name: "师兄B", stage: "研究生", distance: 40, contact: true, gender: "男", mbti: "INTJ", personality: "高冷毒舌", story: "带我入门实验室的大神，虽然毕业了但依然会指导我。" },
-            { id: "B01", name: "小花", stage: "大学", distance: 20, contact: true, gender: "女", mbti: "", personality: "温柔倾听", story: "大学四年的饭搭子，也是我的情感垃圾桶。" },
-            { id: "B02", name: "社长C", stage: "大学", distance: 60, contact: false, gender: "男", mbti: "ENTJ", personality: "", story: "曾经一起办过最大的活动，教会我什么是领导力。" },
-            { id: "C01", name: "同桌D", stage: "高中", distance: 30, contact: true, gender: "女", mbti: "ISFP", personality: "艺术气质", story: "陪我逃晚自习看星星的人。" },
-            { id: "C02", name: "老班", stage: "高中", distance: 80, contact: false, gender: "男", mbti: "", personality: "严厉", story: "唯一劝我不要放弃数学的人。" },
-            { id: "D01", name: "Mentor E", stage: "实习", distance: 50, contact: true, gender: "女", mbti: "ESTJ", personality: "雷厉风行", story: "职场引路人。" },
-            { id: "E01", name: "发小F", stage: "小学", distance: 10, contact: true, gender: "女", mbti: "INFP", personality: "治愈系", story: "认识20年了，不需要说话就知道对方在想什么。" },
-            { id: "F01", name: "驴友G", stage: "网友", distance: 45, contact: false, gender: "男", mbti: "", personality: "幽默", story: "一起去过西藏，生死之交。" },
+            // --- 初中 ---
+            { id: "M01", name: "丸老师/蠢滢", stage: "初中", distance: 6, contact: true, gender: "女", mbti: "INFJ", personality: "淡淡的绿老头", story: "淡淡的绿老头。" },
+            { id: "M02", name: "狗子/小孔老师", stage: "初中", distance: 6, contact: true, gender: "男", mbti: "ISFJ", personality: "道德标兵", story: "老实人一枚。" },
+            { id: "M03", name: "xx/叉叉", stage: "初中", distance: 51, contact: false, gender: "男", mbti: "ISFP", personality: "", story: "嗯嗯。。我那个taidu的朋友，2019之后就没见过面惹，目前仅朋友圈点赞之交。" },
+        
+            // --- 高中 ---
+            { id: "H01", name: "kiki", stage: "高中", distance: 11, contact: true, gender: "女", mbti: "ISTJ", personality: "互联网HR", story: "在北师大读研，一起写毕业论文联盟。是所有朋友里唯一一个会打语音聊烦恼的朋友，一起去过上海迪士尼，劝我要学会接受新的交友方式。" },
+            { id: "H02", name: "ruojia", stage: "高中", distance: 16, contact: true, gender: "女", mbti: "INFP", personality: "二次元", story: "因为看了我推荐的小说，选了精算专业到现在还在骂我的朋友:P。是我共同爱好最多的朋友（耽美/乙游）。" },
+            { id: "H03", name: "dudu", stage: "高中", distance: 21, contact: true, gender: "女", mbti: "", personality: "理科白痴", story: "我高三最后阶段的同桌，我俩属于两个理科白痴一起互相鼓励的革命友谊。" },
+            { id: "H04", name: "fanfan", stage: "高中", distance: 26, contact: true, gender: "女", mbti: "ENFJ", personality: "", story: "现在在美国工作，圣诞节回广州见的朋友。" },
+            { id: "H05", name: "大嘴健/师傅", stage: "高中", distance: 91, contact: false, gender: "男", mbti: "ENFP", personality: "狐朋狗友", story: "高中互相教数学/英语的关系，现在仅朋友圈点赞评论之交，0私聊。" },
+        
+            // --- 本科 ---
+            { id: "U01", name: "辣子", stage: "本科", distance: 13, contact: true, gender: "女", mbti: "INFJ", personality: "混子组", story: "讨伐型/滑跪型人格。经常熬夜的广告人。冰沙事件主人公：“你们是什么狗人我今天会看清楚”。" },
+            { id: "U02", name: "球球", stage: "本科", distance: 21, contact: true, gender: "女", mbti: "INFJ", personality: "混子组", story: "在香港读研的朋友。冰沙事件嫌疑人：“是没给钱吗”。" },
+            { id: "U03", name: "妮", stage: "本科", distance: 28, contact: true, gender: "女", mbti: "", personality: "室友", story: "关系最好的室友。" },
+            { id: "U04", name: "韵姐", stage: "本科", distance: 28, contact: true, gender: "女", mbti: "", personality: "室友", story: "我肠胃炎发烧的时候陪我去急诊的室友。" },
+            { id: "U05", name: "羊", stage: "本科", distance: 29, contact: true, gender: "女", mbti: "", personality: "室友", story: "互联网产品同行:) 算是我干产品的启蒙人吧。" },
+            { id: "U06", name: "饼饼", stage: "本科", distance: 41, contact: true, gender: "女", mbti: "INFP", personality: "混子组", story: "见人说人话见鬼说鬼话，见到男朋友就不和我说话:)。冰沙事件嫌疑人：“是我的吗，喝一口”。" },
+        
+            // --- 硕士 ---
+            { id: "G01", name: "鸭老师", stage: "硕士", distance: 29, contact: true, gender: "女", mbti: "ENFP", personality: "追星搭子", story: "会一起喝酒的朋友。在我追的爱豆还没塌房之前，我俩是同担。" },
+            { id: "G02", name: "小林老师", stage: "硕士", distance: 31, contact: true, gender: "女", mbti: "INTJ", personality: "室友", story: "住在一起但因为边界感太强所以不是很熟的俩人...orz。俩产品探子。" },
+            { id: "G03", name: "小刘", stage: "硕士", distance: 36, contact: true, gender: "女", mbti: "INFJ", personality: "研友", story: "一起备考复试的学硕同学。" },
+        
+            // --- 实习 ---
+            { id: "I01", name: "扎扎", stage: "实习", distance: 11, contact: true, gender: "女", mbti: "ENFP", personality: "bilibili", story: "我读研以后认识的关系最亲密的朋友。可以和我聊情感问题，我的放下是由她引路的。" },
+            { id: "I02", name: "柳丁哥", stage: "实习", distance: 23, contact: true, gender: "男", mbti: "ISFJ", personality: "bilibili", story: "哎哟。火星撞地球的关系。" },
+            { id: "I03", name: "qq小冰", stage: "实习", distance: 26, contact: true, gender: "女", mbti: "INFJ", personality: "mi", story: "算是合得来但是观念上会有些不一样，但她人还是很好的。" },
         ];
 
         // 3. 朋友间的关系连线 (高级功能)
         // source 和 target 必须填上面的 name (姓名)
         const relationsData = [
-            { source: "小A", target: "师兄B", label: "欢喜冤家", type: "dotted", arrow: false },
-            { source: "小花", target: "社长C", label: "前任", type: "solid", arrow: true }, 
-            { source: "小A", target: "小花", label: "介绍认识", type: "dashed", arrow: true } 
         ];
 
         // ==========================================
