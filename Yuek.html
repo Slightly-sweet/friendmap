@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Yuek's Friend Map V4.0</title>
+    <title>Yuek's Friend Map V4.0 (High-Res)</title>
     <!-- 引入 D3.js -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         body {
             margin: 0;
-            background-color: #0b0c10;
+            /* 背景升级：深空渐变，不再是死黑 */
+            background: radial-gradient(circle at center, #1b2735 0%, #090a0f 100%);
             font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
             overflow: hidden;
             display: flex;
@@ -24,58 +25,58 @@
         #tooltip {
             position: fixed;
             opacity: 0;
-            background: rgba(16, 20, 30, 0.9);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(102, 252, 241, 0.3);
-            padding: 15px;
-            border-radius: 8px;
+            background: rgba(16, 20, 30, 0.95);
+            backdrop-filter: blur(15px); /* 更强的磨砂感 */
+            border: 1px solid rgba(102, 252, 241, 0.4);
+            padding: 16px;
+            border-radius: 12px;
             pointer-events: none;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
             width: 240px;
             z-index: 1000;
-            transition: opacity 0.2s ease;
+            transition: opacity 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
             font-size: 13px;
         }
-        #tooltip h3 { margin: 0 0 5px 0; color: #66fcf1; font-size: 1.1em; }
-        #tooltip .tags { display: flex; gap: 5px; margin-bottom: 8px; flex-wrap: wrap; }
-        #tooltip .tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.15); color: #c5c6c7; }
-        #tooltip p { margin: 0; line-height: 1.5; color: #fff; }
+        #tooltip h3 { margin: 0 0 6px 0; color: #66fcf1; font-size: 1.2em; font-weight: bold; letter-spacing: 0.5px; }
+        #tooltip .tags { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+        #tooltip .tag { font-size: 10px; padding: 3px 8px; border-radius: 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1); color: #e0e0e0; }
+        #tooltip p { margin: 0; line-height: 1.6; color: #eee; font-weight: 300; }
 
         /* 控制面板 */
         .controls {
             position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 8px 12px;
-            border-radius: 20px;
-            backdrop-filter: blur(5px);
+            bottom: 25px;
+            right: 25px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 10px 16px;
+            border-radius: 30px;
+            backdrop-filter: blur(8px);
             z-index: 100;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             font-size: 12px;
-            border: 1px solid rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.15);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
         
-        .switch { position: relative; display: inline-block; width: 36px; height: 18px; }
+        .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
         .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 20px; }
-        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #4a4a4a; transition: .4s; border-radius: 22px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
         input:checked + .slider { background-color: #66fcf1; }
         input:checked + .slider:before { transform: translateX(18px); }
 
-        .star { position: absolute; background: white; border-radius: 50%; opacity: 0.5; animation: twinkle 3s infinite; }
-        @keyframes twinkle { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.8; } }
+        /* 升级版星星动画 */
+        .star { position: absolute; background: white; border-radius: 50%; opacity: 0; animation: twinkle ease-in-out infinite; }
+        @keyframes twinkle { 0% { opacity: 0.1; transform: scale(0.8); } 50% { opacity: 0.9; transform: scale(1.2); } 100% { opacity: 0.1; transform: scale(0.8); } }
 
-        .group-label {
-            font-size: 11px;
-            fill: #66fcf1;
-            opacity: 0.9;
-            text-shadow: 0 0 4px #000;
-            pointer-events: none;
-            font-weight: bold;
-        }
+        /* 标签 */
+        .group-label { font-size: 11px; fill: #66fcf1; opacity: 0.9; text-shadow: 0 2px 4px rgba(0,0,0,0.8); pointer-events: none; font-weight: bold; letter-spacing: 1px; }
+        .sector-label { font-size: 15px; fill: rgba(255,255,255,0.7); font-weight: bold; letter-spacing: 2px; }
+
+        /* 渲染优化 */
+        svg { shape-rendering: geometricPrecision; text-rendering: optimizeLegibility; }
     </style>
 </head>
 <body>
@@ -146,8 +147,8 @@
 
             const width = window.innerWidth;
             const height = window.innerHeight;
-            const maxRadius = Math.min(width, height) * 0.45; 
-            const centerRadius = 24; // 太阳稍微大一点
+            const maxRadius = Math.min(width, height) * 0.42; 
+            const centerRadius = 24; // 稍微调大一点“我”
 
             const svg = d3.select("body").append("svg")
                 .attr("width", width)
@@ -158,17 +159,25 @@
 
             const mainG = svg.append("g");
 
-            // 定义滤镜和箭头
+            // 定义滤镜 (修复光线方块问题：扩大渲染区域 + 使用 geometricPrecision)
             const defs = svg.append("defs");
-            defs.append("marker").attr("id", "arrow").attr("viewBox", "0 -5 10 10").attr("refX", 18).attr("refY", 0).attr("markerWidth", 6).attr("markerHeight", 6).attr("orient", "auto")
-                .append("path").attr("d", "M0,-5L10,0L0,5").attr("fill", "#66fcf1");
-            const filter = defs.append("filter").attr("id", "glow");
-            filter.append("feGaussianBlur").attr("stdDeviation", "2.5").attr("result", "coloredBlur");
+            const filter = defs.append("filter")
+                .attr("id", "glow")
+                .attr("x", "-50%") .attr("y", "-50%")
+                .attr("width", "200%") .attr("height", "200%"); // 扩大渲染范围
+            
+            filter.append("feGaussianBlur")
+                .attr("stdDeviation", "3")
+                .attr("result", "coloredBlur");
             const feMerge = filter.append("feMerge");
             feMerge.append("feMergeNode").attr("in", "coloredBlur");
             feMerge.append("feMergeNode").attr("in", "SourceGraphic");
 
-            // 1. 计算扇区 (增加缝隙)
+            // 箭头Marker
+            defs.append("marker").attr("id", "arrow").attr("viewBox", "0 -5 10 10").attr("refX", 18).attr("refY", 0).attr("markerWidth", 6).attr("markerHeight", 6).attr("orient", "auto")
+                .append("path").attr("d", "M0,-5L10,0L0,5").attr("fill", "#66fcf1");
+
+            // 1. 计算扇区 (增加一点padAngle让分界更明显)
             const stageCounts = d3.rollups(friendsData, v => v.length, d => d.stage);
             const stageMap = new Map(stageCounts);
             let allStages = Array.from(stageMap.keys());
@@ -177,8 +186,7 @@
                 if (ia === -1) ia = 999; if (ib === -1) ib = 999;
                 return ia - ib;
             });
-            // ✨ 修改：padAngle 增大到 0.15，让扇区之间缝隙更明显，避免重叠
-            const pie = d3.pie().value(d => stageMap.get(d)).sort(null).padAngle(0.15);
+            const pie = d3.pie().value(d => stageMap.get(d)).sort(null).padAngle(0.08); // 增加扇区间隔
             const arcs = pie(allStages);
             const angleMap = {};
             arcs.forEach(d => { angleMap[d.data] = { start: d.startAngle, end: d.endAngle, mid: (d.startAngle + d.endAngle) / 2 }; });
@@ -186,116 +194,90 @@
             // 2. 绘制背景扇区 (分界线增强)
             const sectorG = mainG.append("g").attr("class", "sectors");
             arcs.forEach(d => {
-                const r = maxRadius + 30;
+                const r = maxRadius + 35;
                 const midAngle = (d.startAngle + d.endAngle) / 2;
                 const labelX = Math.sin(midAngle) * r;
                 const labelY = -Math.cos(midAngle) * r;
+                const lineX = Math.sin(d.startAngle) * maxRadius;
+                const lineY = -Math.cos(d.startAngle) * maxRadius;
                 
-                // 起始边
-                const x1 = Math.sin(d.startAngle) * maxRadius;
-                const y1 = -Math.cos(d.startAngle) * maxRadius;
-                // 结束边
-                const x2 = Math.sin(d.endAngle) * maxRadius;
-                const y2 = -Math.cos(d.endAngle) * maxRadius;
+                // 增强分界线可见度
+                sectorG.append("line").attr("x1", 0).attr("y1", 0).attr("x2", lineX).attr("y2", lineY)
+                    .attr("stroke", "rgba(255,255,255,0.25)") // 调高不透明度
+                    .attr("stroke-width", 1.5) // 加粗
+                    .attr("stroke-dasharray", "6,4"); // 虚线间距调整
 
-                // ✨ 修改：分界线颜色加深，虚线变密
-                const lineStyle = { stroke: "rgba(255,255,255,0.25)", dash: "2,4" };
-
-                sectorG.append("line").attr("x1", 0).attr("y1", 0).attr("x2", x1).attr("y2", y1)
-                    .attr("stroke", lineStyle.stroke).attr("stroke-dasharray", lineStyle.dash);
-                sectorG.append("line").attr("x1", 0).attr("y1", 0).attr("x2", x2).attr("y2", y2)
-                    .attr("stroke", lineStyle.stroke).attr("stroke-dasharray", lineStyle.dash);
-
-                sectorG.append("text").attr("x", labelX).attr("y", labelY).attr("text-anchor", "middle").attr("dominant-baseline", "middle")
-                    .attr("fill", "#bbb").attr("font-size", "14px").text(d.data);
+                sectorG.append("text").attr("class", "sector-label")
+                    .attr("x", labelX).attr("y", labelY).attr("text-anchor", "middle").attr("dominant-baseline", "middle")
+                    .text(d.data);
             });
 
-            // 3. 计算节点位置 (优化距离感)
-            // ✨ 修改：范围从 [60, max] 开始，避免离圆心太近。
-            // 使用 clamp(true) 防止极大值溢出屏幕
+            // 3. 计算节点位置 (解决拥挤 & 极端值问题)
+            // 修改 radiusScale 的 range，起始点从 65 开始，给圆心留出更多空间
             const radiusScale = d3.scaleLinear()
                 .domain([0, 100])
-                .range([centerRadius + 40, maxRadius]) 
-                .clamp(true);
+                .range([centerRadius + 45, maxRadius]); // 起始距离增加，防止贴脸
 
             const nodes = friendsData.map(d => {
                 const angleInfo = angleMap[d.stage];
-                // ✨ 修改：增加初始角度的随机性，让它们 spread 得更开
-                const spread = (angleInfo.end - angleInfo.start) * 0.6;
-                const angle = angleInfo.mid + (Math.random() - 0.5) * spread; 
-                
+                // 增加初始角度的随机分布范围，避免大家都在扇区正中间
+                const angle = angleInfo.mid + (Math.random() - 0.5) * (angleInfo.end - angleInfo.start) * 0.4;
                 const r = radiusScale(d.distance);
                 const targetX = Math.sin(angle) * r;
                 const targetY = -Math.cos(angle) * r;
                 
-                return { 
-                    ...d, 
-                    x: targetX, y: targetY, 
-                    targetX: targetX, targetY: targetY, 
-                    // ✨ 修改：碰撞体积显著增大，强行撑开间距
-                    radius: d.distance < 20 ? 14 : 9 
-                };
+                // 碰撞半径：稍微加大一点，让物理引擎把它们推得更开
+                return { ...d, x: targetX, y: targetY, targetX: targetX, targetY: targetY, 
+                         r: r, 
+                         collideRadius: d.distance < 20 ? 18 : 12 }; // 用于物理碰撞的半径
             });
 
-            // 4. 物理模拟 (防重叠增强)
+            // 4. 物理模拟 (强力防重叠)
             const simulation = d3.forceSimulation(nodes)
-                // 减弱向目标点的拉力，允许球体被碰撞推开
-                .force("x", d3.forceX(d => d.targetX).strength(0.2)) 
-                .force("y", d3.forceY(d => d.targetY).strength(0.2))
-                // ✨ 修改：碰撞半径大幅增加 (+18)，确保不会贴在一起
-                .force("collide", d3.forceCollide(d => d.radius + 18).iterations(4))
+                // 弱化归位引力，允许它们被挤开
+                .force("x", d3.forceX(d => d.targetX).strength(0.3)) 
+                .force("y", d3.forceY(d => d.targetY).strength(0.3))
+                // 强化碰撞力，并且迭代多次，确保推开
+                .force("collide", d3.forceCollide(d => d.collideRadius + 5).strength(1).iterations(3))
                 .stop();
 
-            // 多运行几次让布局稳定
-            for (let i = 0; i < 250; i++) simulation.tick();
+            // 多跑几次 tick 让布局稳定
+            for (let i = 0; i < 300; i++) simulation.tick();
 
             const nameToNode = {};
             nodes.forEach(n => nameToNode[n.name] = n);
 
-            // 5. 绘制圈子 (Hull/Blob)
+            // 5. 绘制圈子 (Group Hulls)
             const groupLayer = mainG.append("g").attr("class", "group-layer");
-            
             groupsData.forEach(group => {
                 const members = group.members.map(name => nameToNode[name]).filter(n => n);
                 if (members.length < 2) return;
-
                 let points = members.map(d => [d.x, d.y]);
                 let pathData = "";
                 let center = [0, 0];
-
                 if (members.length === 2) {
                     pathData = `M${points[0][0]},${points[0][1]} L${points[1][0]},${points[1][1]}`;
                     center = [(points[0][0]+points[1][0])/2, (points[0][1]+points[1][1])/2];
                 } else {
                     const hull = d3.polygonHull(points);
-                    if (hull) {
-                        pathData = "M" + hull.join("L") + "Z";
-                        center = d3.polygonCentroid(hull);
-                    }
+                    if (hull) { pathData = "M" + hull.join("L") + "Z"; center = d3.polygonCentroid(hull); }
                 }
-
                 if (pathData) {
                     groupLayer.append("path")
                         .attr("d", pathData)
                         .attr("fill", "rgba(102, 252, 241, 0.08)")
                         .attr("stroke", "#66fcf1")
-                        // ✨ 修改：减小描边宽度，显得更精致
-                        .attr("stroke-width", members.length === 2 ? 25 : 30) 
+                        .attr("stroke-width", members.length === 2 ? 30 : 35)
                         .attr("stroke-linejoin", "round")
-                        .attr("stroke-opacity", 0.25)
+                        .attr("stroke-opacity", 0.25) // 稍微清晰一点
                         .attr("stroke-dasharray", group.type === "dashed" ? "8,6" : "0");
-
-                    groupLayer.append("text")
-                        .attr("class", "group-label")
-                        .attr("x", center[0])
-                        .attr("y", center[1])
-                        .attr("text-anchor", "middle")
-                        .attr("dy", 4)
+                    groupLayer.append("text").attr("class", "group-label")
+                        .attr("x", center[0]).attr("y", center[1]).attr("text-anchor", "middle").attr("dy", 4)
                         .text(group.label);
                 }
             });
 
-            // 6. 绘制连线
+            // 6. 连线
             const relationsG = mainG.append("g").attr("class", "relations-layer");
             const validRelations = relationsData.filter(r => nameToNode[r.source] && nameToNode[r.target]);
             relationsG.selectAll(".rel-link").data(validRelations).enter().append("path")
@@ -308,7 +290,7 @@
             linksG.selectAll("line").data(nodes).enter().append("line")
                 .attr("x1", 0).attr("y1", 0).attr("x2", d => d.x).attr("y2", d => d.y)
                 .attr("stroke", d => d.gender === "女" ? "#ff4d94" : "#00d2ff")
-                .attr("stroke-width", 1).attr("opacity", 0.2) // 稍微调淡连线
+                .attr("stroke-width", 1.2).attr("opacity", 0.4) // 提高连线清晰度
                 .attr("stroke-dasharray", d => d.contact ? "0" : "4,4");
 
             // 7. 绘制节点
@@ -317,41 +299,38 @@
                 .attr("r", d => d.distance < 20 ? 12 : 7)
                 .attr("cx", d => d.x).attr("cy", d => d.y)
                 .attr("fill", d => d.gender === "女" ? "#ff4d94" : "#00d2ff")
-                .style("filter", "url(#glow)")
-                .attr("stroke", "#fff")
-                .attr("stroke-width", d => d.distance < 20 ? 2 : 1.5)
+                .style("filter", "url(#glow)") // 使用修复后的滤镜
+                .attr("stroke", "#fff").attr("stroke-width", d => d.distance < 20 ? 2 : 1.5)
                 .attr("stroke-dasharray", d => d.contact ? "0" : "3,2");
 
+            // 圆心 (加大)
             const me = mainG.append("g").style("filter", "url(#glow)");
-            me.append("circle").attr("r", 18).attr("fill", "#ffd700");
-            me.append("text").attr("y", 5).attr("text-anchor", "middle").attr("fill", "#000").style("font-size", "11px").style("font-weight", "bold").text("我");
+            me.append("circle").attr("r", 20).attr("fill", "#ffd700");
+            me.append("text").attr("y", 5).attr("text-anchor", "middle").attr("fill", "#000").style("font-size", "11px").style("font-weight", "900").text("我");
 
             // 8. 交互
             const tooltip = d3.select("#tooltip");
             circles.on("click mouseover", function(event, d) {
                 event.stopPropagation();
                 d3.select(this).transition().attr("r", 18);
-                
                 let tagsHtml = `<span class="tag">${d.stage}</span>`;
                 if(d.mbti) tagsHtml += `<span class="tag">${d.mbti}</span>`;
                 if(d.personality) tagsHtml += `<span class="tag">${d.personality}</span>`;
-                if(!d.contact) tagsHtml += `<span class="tag" style="border:1px solid #777">已断联</span>`;
+                if(!d.contact) tagsHtml += `<span class="tag" style="border-color:#777;color:#999">已断联</span>`;
                 
                 tooltip.html(`<h3>${d.name} <span style="font-size:0.7em;color:#fff;opacity:0.6">${d.gender}</span></h3><div class="tags">${tagsHtml}</div><p>“${d.story}”</p>`);
                 
                 const tipNode = tooltip.node();
-                const tipW = 272; 
+                const tipW = 274; 
                 const tipH = tipNode.offsetHeight || 150; 
                 const screenW = window.innerWidth;
-
-                let left = event.clientX + 10;
-                let top = event.clientY - tipH - 10;
-
-                if (left + tipW > screenW) left = event.clientX - tipW - 10;
+                
+                let left = event.clientX + 14;
+                let top = event.clientY - tipH - 14;
+                if (left + tipW > screenW) left = event.clientX - tipW - 14;
                 if (top < 0) top = event.clientY + 20;
 
                 tooltip.style("opacity", 1).style("left", left + "px").style("top", top + "px");
-
             }).on("mouseout", function() {
                 d3.select(this).transition().attr("r", d => d.distance < 20 ? 12 : 7);
                 tooltip.style("opacity", 0).style("left", "-999px");
@@ -369,16 +348,21 @@
             updateRelations();
         }
 
+        // 星星生成逻辑优化
         function createStars() {
-            for(let i=0; i<150; i++) {
+            for(let i=0; i<180; i++) {
                 const star = document.createElement('div');
                 star.className = 'star';
-                const size = Math.random() * 2;
+                const r = Math.random();
+                // 生成不同大小的星星
+                const size = r < 0.6 ? 1 : (r < 0.9 ? 2 : 3); 
                 star.style.width = size + 'px';
                 star.style.height = size + 'px';
                 star.style.left = Math.random() * 100 + 'vw';
                 star.style.top = Math.random() * 100 + 'vh';
+                // 随机动画时长和延迟
                 star.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                star.style.animationDelay = (Math.random() * 2) + 's';
                 document.body.appendChild(star);
             }
         }
