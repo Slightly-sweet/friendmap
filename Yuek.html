@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Yuek's Friend Map V4.0 (High-Res)</title>
+    <title>Yuek's Friend Map V4.0</title>
     <!-- 引入 D3.js -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         body {
             margin: 0;
-            background-color: #050608; /* 更纯净的深黑背景 */
+            background-color: #050505; /* 纯黑背景改为极深的灰黑，减少视觉疲劳 */
             font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
             overflow: hidden;
             display: flex;
@@ -20,49 +20,42 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* 渲染优化：抗锯齿 */
-        svg {
-            shape-rendering: geometricPrecision;
-            text-rendering: geometricPrecision;
-        }
-
-        /* 悬停卡片 (智能定位) */
+        /* 悬停卡片 */
         #tooltip {
             position: fixed;
             opacity: 0;
-            background: rgba(10, 15, 25, 0.95);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(102, 252, 241, 0.5);
+            background: rgba(10, 10, 15, 0.95);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             padding: 15px;
             border-radius: 8px;
             pointer-events: none;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.9);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.8);
             width: 240px;
             z-index: 1000;
             transition: opacity 0.15s ease;
             font-size: 13px;
         }
-        #tooltip h3 { margin: 0 0 5px 0; color: #66fcf1; font-size: 1.1em; letter-spacing: 1px; }
+        #tooltip h3 { margin: 0 0 5px 0; color: #fff; font-size: 1.1em; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; }
         #tooltip .tags { display: flex; gap: 5px; margin-bottom: 8px; flex-wrap: wrap; }
-        #tooltip .tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.15); color: #fff; }
-        #tooltip p { margin: 0; line-height: 1.6; color: #ddd; }
+        #tooltip .tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.15); color: #ccc; }
+        #tooltip p { margin: 0; line-height: 1.5; color: #ddd; }
 
         /* 控制面板 */
         .controls {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(30, 30, 30, 0.6);
             padding: 8px 15px;
-            border-radius: 30px;
-            backdrop-filter: blur(8px);
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
             z-index: 100;
             display: flex;
             align-items: center;
             gap: 10px;
             font-size: 12px;
             border: 1px solid rgba(255,255,255,0.3);
-            box-shadow: 0 0 10px rgba(0,0,0,0.5);
         }
         
         .switch { position: relative; display: inline-block; width: 36px; height: 18px; }
@@ -72,12 +65,13 @@
         input:checked + .slider { background-color: #66fcf1; }
         input:checked + .slider:before { transform: translateX(18px); }
 
-        /* 星星背景优化：更亮、更大 */
+        /* 星星背景 - 增强可见度 */
         .star { 
             position: absolute; 
             background: white; 
             border-radius: 50%; 
-            box-shadow: 0 0 4px rgba(255, 255, 255, 0.8); /* 发光效果 */
+            /* 增加辉光效果，让星星更亮 */
+            box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
             animation: twinkle 4s infinite ease-in-out; 
         }
         @keyframes twinkle { 
@@ -85,14 +79,12 @@
             50% { opacity: 1; transform: scale(1.2); } 
         }
 
-        /* 圈子标签 */
+        /* 圈子标签文字 */
         .group-label {
-            font-size: 11px;
-            fill: #66fcf1;
+            font-size: 12px;
             font-weight: bold;
-            text-shadow: 0 0 3px #000, 0 0 5px #000; /* 描边防止看不清 */
             pointer-events: none;
-            opacity: 0.8;
+            text-shadow: 0 0 3px #000, 0 0 5px #000; /* 黑色描边防止看不清 */
         }
     </style>
 </head>
@@ -101,7 +93,7 @@
     <div id="tooltip"></div>
 
     <div class="controls">
-        <span>显示圈子 & 连线</span>
+        <span>圈子 & 连线</span>
         <label class="switch">
             <input type="checkbox" id="toggleRelations" checked>
             <span class="slider"></span>
@@ -147,12 +139,14 @@
             { id: "I03", name: "qq小冰", stage: "实习", distance: 26, contact: true, gender: "女", mbti: "INFJ", personality: "mi", story: "观念不一样但人很好。" },
         ];
 
+        // 圈子设置
         const groupsData = [
             { members: ["辣子", "球球", "饼饼"], label: "冰沙事件组", type: "dashed" },
             { members: ["妮", "韵姐", "羊"], label: "大学室友", type: "solid" },
             { members: ["丸老师/蠢滢", "狗子/小孔老师"], label: "初中铁三角", type: "dotted" }
         ];
 
+        // 连线
         const relationsData = [];
 
         // ==========================================
@@ -164,36 +158,41 @@
 
             const width = window.innerWidth;
             const height = window.innerHeight;
-            // 调整最大半径，留出更多边缘空间
-            const maxRadius = Math.min(width, height) * 0.40; 
-            const centerRadius = 24;
+            // 响应式半径
+            const maxRadius = Math.min(width, height) * 0.45; 
+            const centerRadius = 25;
+
+            // 创建颜色生成器，用于给不同的圈子上色 (鲜艳配色)
+            const colorPalette = d3.scaleOrdinal(d3.schemeSet3);
 
             const svg = d3.select("body").append("svg")
                 .attr("width", width)
                 .attr("height", height)
                 .attr("viewBox", [ -width / 2, -height / 2, width, height ])
+                .attr("shape-rendering", "geometricPrecision") // 👈 关键：提高渲染质量，消除锯齿和正方形光晕
                 .style("max-width", "100%")
                 .style("height", "auto");
 
             const mainG = svg.append("g");
 
-            // 定义滤镜 (修复正方形光斑问题 - 扩大filterRegion)
+            // 定义滤镜
             const defs = svg.append("defs");
-            defs.append("marker").attr("id", "arrow").attr("viewBox", "0 -5 10 10").attr("refX", 18).attr("refY", 0).attr("markerWidth", 5).attr("markerHeight", 5).attr("orient", "auto")
+            defs.append("marker").attr("id", "arrow").attr("viewBox", "0 -5 10 10").attr("refX", 18).attr("refY", 0).attr("markerWidth", 6).attr("markerHeight", 6).attr("orient", "auto")
                 .append("path").attr("d", "M0,-5L10,0L0,5").attr("fill", "#66fcf1");
             
+            // 优化光晕滤镜：扩大滤镜区域防止被切成正方形
             const filter = defs.append("filter")
                 .attr("id", "glow")
-                .attr("filterUnits", "userSpaceOnUse") // 关键修复：防止裁剪
-                .attr("x", "-50%").attr("y", "-50%")
-                .attr("width", "200%").attr("height", "200%");
-            
+                .attr("x", "-50%")
+                .attr("y", "-50%")
+                .attr("width", "200%")
+                .attr("height", "200%");
             filter.append("feGaussianBlur").attr("stdDeviation", "3").attr("result", "coloredBlur");
             const feMerge = filter.append("feMerge");
             feMerge.append("feMergeNode").attr("in", "coloredBlur");
             feMerge.append("feMergeNode").attr("in", "SourceGraphic");
 
-            // 1. 计算扇区 (动态分配)
+            // 1. 扇区计算
             const stageCounts = d3.rollups(friendsData, v => v.length, d => d.stage);
             const stageMap = new Map(stageCounts);
             let allStages = Array.from(stageMap.keys());
@@ -202,94 +201,91 @@
                 if (ia === -1) ia = 999; if (ib === -1) ib = 999;
                 return ia - ib;
             });
-            const pie = d3.pie().value(d => stageMap.get(d)).sort(null).padAngle(0.1); // 增加扇区空隙
+            const pie = d3.pie().value(d => stageMap.get(d)).sort(null).padAngle(0.08); // 增加一点扇区间隙
             const arcs = pie(allStages);
             const angleMap = {};
             arcs.forEach(d => { angleMap[d.data] = { start: d.startAngle, end: d.endAngle, mid: (d.startAngle + d.endAngle) / 2 }; });
 
-            // 2. 绘制分区线 (增强可见度)
+            // 2. 绘制扇区背景 (增强分界线可见度)
             const sectorG = mainG.append("g").attr("class", "sectors");
             arcs.forEach(d => {
                 const r = maxRadius + 35;
                 const midAngle = (d.startAngle + d.endAngle) / 2;
                 const labelX = Math.sin(midAngle) * r;
                 const labelY = -Math.cos(midAngle) * r;
-                const lineX = Math.sin(d.startAngle) * (maxRadius + 10);
-                const lineY = -Math.cos(d.startAngle) * (maxRadius + 10);
+                const lineX = Math.sin(d.startAngle) * maxRadius;
+                const lineY = -Math.cos(d.startAngle) * maxRadius;
                 
-                // 分区线
+                // 👈 修改：分界线更白、更粗
                 sectorG.append("line")
                     .attr("x1", 0).attr("y1", 0).attr("x2", lineX).attr("y2", lineY)
-                    .attr("stroke", "rgba(255,255,255,0.25)") // 提高透明度
-                    .attr("stroke-width", 1.5) // 加粗
-                    .attr("stroke-dasharray", "5,5"); // 明显的虚线
+                    .attr("stroke", "rgba(255,255,255,0.3)") // 提高不透明度
+                    .attr("stroke-width", 1.5)             // 增加厚度
+                    .attr("stroke-dasharray", "6,4");      // 虚线间距
 
-                sectorG.append("text").attr("x", labelX).attr("y", labelY).attr("text-anchor", "middle").attr("dominant-baseline", "middle")
-                    .attr("fill", "#ccc").attr("font-size", "14px").style("font-weight", "bold").text(d.data);
+                sectorG.append("text")
+                    .attr("x", labelX).attr("y", labelY)
+                    .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
+                    .attr("fill", "#ccc") // 字体调亮
+                    .attr("font-size", "14px").text(d.data);
             });
 
-            // 3. 节点布局计算 (防止极端值)
-            // 使用 clamp 限制最小和最大范围，防止太近或太远
-            const radiusScale = d3.scaleLinear()
-                .domain([0, 100])
-                .range([centerRadius + 40, maxRadius]); // 最小距离加大，留出中心空间
-
+            // 3. 节点位置计算 (优化：非线性布局)
+            // 👈 修改：range从 60 开始，而不是 40。强制让最近的点也离圆心有足够距离，防止挤在一起。
+            const radiusScale = d3.scaleLinear().domain([0, 100]).range([60, maxRadius]);
+            
             const nodes = friendsData.map(d => {
                 const angleInfo = angleMap[d.stage];
-                // 增加扇区内的随机角度范围，让点更分散
-                const angleSpread = (angleInfo.end - angleInfo.start) * 0.6; 
-                const angle = angleInfo.mid + (Math.random() - 0.5) * angleSpread; 
-                
-                // 距离处理：如果距离特别小，强制推开一点；如果特别大，限制在边缘
-                let normalizedDist = d.distance;
-                if(d.distance < 10) normalizedDist = 10;
-                if(d.distance > 95) normalizedDist = 95;
-
-                const r = radiusScale(normalizedDist);
+                const angle = angleInfo.mid + (Math.random() - 0.5) * 0.2; 
+                const r = radiusScale(d.distance);
                 const targetX = Math.sin(angle) * r;
                 const targetY = -Math.cos(angle) * r;
-                
+                // 碰撞半径加大：d.distance < 20 ? 25 : 15。让球之间留出很大空隙
                 return { 
                     ...d, 
-                    x: targetX, y: targetY, 
-                    targetX: targetX, targetY: targetY, 
-                    radius: d.distance < 20 ? 15 : 10 // 碰撞半径
+                    x: targetX, y: targetY, targetX: targetX, targetY: targetY, 
+                    // 👈 关键：碰撞体积大幅增加，强制散开
+                    radius: d.distance < 20 ? 25 : 18 
                 };
             });
 
-            // 4. 强力物理引擎 (分散布局)
+            // 4. 物理引擎 (增加离散度)
             const simulation = d3.forceSimulation(nodes)
-                .force("x", d3.forceX(d => d.targetX).strength(0.3)) // 降低归位引力，允许更多偏移
+                .force("x", d3.forceX(d => d.targetX).strength(0.3)) // 拉力减弱，允许跑偏
                 .force("y", d3.forceY(d => d.targetY).strength(0.3))
-                .force("collide", d3.forceCollide(d => d.radius + 15).iterations(4).strength(1)) // 大幅增加碰撞半径(radius+15)
+                .force("collide", d3.forceCollide(d => d.radius).iterations(4)) // 强力碰撞
                 .stop();
-            
-            // 运行更多次以达到稳定平衡
+            // 运行更多次以达到稳定状态
             for (let i = 0; i < 300; i++) simulation.tick();
 
             const nameToNode = {};
             nodes.forEach(n => nameToNode[n.name] = n);
 
             // ==========================================
-            // ✨ 绘制圈子 (改用虚线圈，非填充)
+            // ✨ 绘制圈子 (改为虚线圈 + 独立颜色)
             // ==========================================
             const groupLayer = mainG.append("g").attr("class", "group-layer");
             
-            groupsData.forEach((group, i) => {
+            groupsData.forEach((group, index) => {
                 const members = group.members.map(name => nameToNode[name]).filter(n => n);
                 if (members.length < 2) return;
 
-                let points = members.map(d => [d.x, d.y]);
+                // 自动分配颜色
+                const groupColor = colorPalette(index);
+
+                // 计算凸包
+                const points = members.map(d => [d.x, d.y]);
                 let pathData = "";
                 let center = [0, 0];
 
+                // 简单的连线逻辑
                 if (members.length === 2) {
                     pathData = `M${points[0][0]},${points[0][1]} L${points[1][0]},${points[1][1]}`;
                     center = [(points[0][0]+points[1][0])/2, (points[0][1]+points[1][1])/2];
                 } else {
                     const hull = d3.polygonHull(points);
                     if (hull) {
-                        // 使用平滑曲线 (Catmull-Rom) 使多边形更圆润
+                        // 使用 CatmullRom 曲线让三角形/多边形变圆润
                         const lineGen = d3.line().curve(d3.curveCatmullRomClosed.alpha(0.5));
                         pathData = lineGen(hull);
                         center = d3.polygonCentroid(hull);
@@ -297,35 +293,26 @@
                 }
 
                 if (pathData) {
-                    // 绘制虚线圈
+                    // 👈 修改：不再有填充色，改为粗虚线
                     groupLayer.append("path")
                         .attr("d", pathData)
-                        .attr("fill", "none") // 不填充！
-                        .attr("stroke", i % 2 === 0 ? "#ff4d94" : "#66fcf1") // 交替颜色
-                        .attr("stroke-width", members.length === 2 ? 26 : 2) // 两人时仍需宽线框，多人用细线
+                        .attr("fill", "none")
+                        .attr("stroke", groupColor)
+                        .attr("stroke-width", members.length === 2 ? 25 : 35) // 宽度依然要大，用来包裹星球
                         .attr("stroke-linecap", "round")
                         .attr("stroke-linejoin", "round")
-                        // 如果是两人，用很宽的透明线做背景，上面叠加虚线
-                        .attr("stroke-opacity", members.length === 2 ? 0.2 : 0.8) 
-                        .attr("stroke-dasharray", members.length === 2 ? "0" : "6,4"); 
-                    
-                    // 如果是两人组，再加一根细虚线连接
-                    if(members.length === 2) {
-                        groupLayer.append("path")
-                            .attr("d", pathData)
-                            .attr("fill", "none")
-                            .attr("stroke", i % 2 === 0 ? "#ff4d94" : "#66fcf1")
-                            .attr("stroke-width", 1.5)
-                            .attr("stroke-dasharray", "5,3");
-                    }
+                        .attr("stroke-opacity", 0.6) // 降低不透明度
+                        .attr("stroke-dasharray", "5, 8"); // 稀疏的虚线
 
-                    // 标签
+                    // 圈子文字
                     groupLayer.append("text")
                         .attr("class", "group-label")
                         .attr("x", center[0])
                         .attr("y", center[1])
                         .attr("text-anchor", "middle")
                         .attr("dy", members.length === 2 ? 4 : 4)
+                        .attr("fill", groupColor) // 文字颜色与圈子一致
+                        .style("font-size", "11px") // 稍微调小一点以免遮挡
                         .text(group.label);
                 }
             });
@@ -344,29 +331,30 @@
                 .attr("x1", 0).attr("y1", 0).attr("x2", d => d.x).attr("y2", d => d.y)
                 .attr("stroke", d => d.gender === "女" ? "#ff4d94" : "#00d2ff")
                 .attr("stroke-width", 1).attr("opacity", 0.3)
-                .attr("stroke-dasharray", d => d.contact ? "0" : "3,3");
+                .attr("stroke-dasharray", d => d.contact ? "0" : "4,4");
 
-            // 6. 绘制节点
+            // 6. 绘制星球
             const nodesG = mainG.append("g").attr("class", "nodes");
             const circles = nodesG.selectAll("circle").data(nodes).enter().append("circle")
-                .attr("r", d => d.distance < 20 ? 12 : 7)
+                // 显示半径稍微改小一点，视觉更精致
+                .attr("r", d => d.distance < 20 ? 12 : 6)
                 .attr("cx", d => d.x).attr("cy", d => d.y)
                 .attr("fill", d => d.gender === "女" ? "#ff4d94" : "#00d2ff")
                 .style("filter", "url(#glow)")
                 .attr("stroke", "#fff")
                 .attr("stroke-width", d => d.distance < 20 ? 2 : 1.5)
-                .attr("stroke-dasharray", d => d.contact ? "0" : "2,2");
+                .attr("stroke-dasharray", d => d.contact ? "0" : "2,2"); 
 
-            // 绘制我
+            // 我
             const me = mainG.append("g").style("filter", "url(#glow)");
             me.append("circle").attr("r", 18).attr("fill", "#ffd700");
-            me.append("text").attr("y", 5).attr("text-anchor", "middle").attr("fill", "#000").style("font-size", "11px").style("font-weight", "bold").text("我");
+            me.append("text").attr("y", 5).attr("text-anchor", "middle").attr("fill", "#000").style("font-size", "10px").style("font-weight", "bold").text("我");
 
             // 7. 交互
             const tooltip = d3.select("#tooltip");
             circles.on("click mouseover", function(event, d) {
                 event.stopPropagation();
-                d3.select(this).transition().attr("r", 16);
+                d3.select(this).transition().attr("r", 16); // 稍微放大
                 
                 let tagsHtml = `<span class="tag">${d.stage}</span>`;
                 if(d.mbti) tagsHtml += `<span class="tag">${d.mbti}</span>`;
@@ -379,17 +367,17 @@
                 const tipW = 272; 
                 const tipH = tipNode.offsetHeight || 150; 
                 const screenW = window.innerWidth;
-
+                
                 let left = event.clientX + 15;
-                let top = event.clientY - tipH - 10;
+                let top = event.clientY - tipH / 2; 
 
                 if (left + tipW > screenW) left = event.clientX - tipW - 15;
-                if (top < 0) top = event.clientY + 20;
+                if (top < 10) top = 10;
 
                 tooltip.style("opacity", 1).style("left", left + "px").style("top", top + "px");
 
             }).on("mouseout", function() {
-                d3.select(this).transition().attr("r", d => d.distance < 20 ? 12 : 7);
+                d3.select(this).transition().attr("r", d => d.distance < 20 ? 12 : 6);
                 tooltip.style("opacity", 0).style("left", "-9999px");
             });
             
@@ -405,20 +393,19 @@
             updateRelations();
         }
 
-        // 星星生成 (增加数量，大小不一)
         function createStars() {
-            const count = 200; // 增加星星数量
-            for(let i=0; i<count; i++) {
+            // 增加星星数量
+            for(let i=0; i<200; i++) {
                 const star = document.createElement('div');
                 star.className = 'star';
-                const size = Math.random() * 2.5 + 0.5; // 大小随机
+                // 增加星星大小
+                const size = Math.random() * 2.5 + 0.5;
                 star.style.width = size + 'px';
                 star.style.height = size + 'px';
                 star.style.left = Math.random() * 100 + 'vw';
                 star.style.top = Math.random() * 100 + 'vh';
-                star.style.opacity = Math.random(); // 初始透明度随机
                 star.style.animationDuration = (Math.random() * 3 + 2) + 's';
-                star.style.animationDelay = Math.random() * 5 + 's';
+                star.style.opacity = Math.random() * 0.7 + 0.3; // 基础不透明度提高
                 document.body.appendChild(star);
             }
         }
