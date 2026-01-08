@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Yuek's friend map V2.0</title>
+    <title>Yuek's Friend Map V3.0</title>
     <!-- 引入 D3.js -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
@@ -17,28 +17,28 @@
             align-items: center;
             height: 100vh;
             color: white;
+            -webkit-tap-highlight-color: transparent; /* 移除手机点击高亮 */
         }
 
-        /* 悬停卡片 */
+        /* 悬停卡片 (智能定位) */
         #tooltip {
             position: absolute;
             opacity: 0;
-            background: rgba(16, 20, 30, 0.85); /* 深色背景更清晰 */
+            background: rgba(16, 20, 30, 0.9);
             backdrop-filter: blur(12px);
             border: 1px solid rgba(102, 252, 241, 0.3);
             padding: 15px;
             border-radius: 8px;
             pointer-events: none;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
-            max-width: 260px;
-            z-index: 20;
-            transition: opacity 0.2s ease, transform 0.2s ease;
-            transform: translate(-50%, -110%);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+            width: 240px; /* 固定宽度方便计算 */
+            z-index: 999;
+            transition: opacity 0.2s ease;
         }
-        #tooltip h3 { margin: 0 0 5px 0; color: #66fcf1; font-size: 1.1em; }
+        #tooltip h3 { margin: 0 0 5px 0; color: #66fcf1; font-size: 16px; }
         #tooltip .tags { display: flex; gap: 5px; margin-bottom: 8px; flex-wrap: wrap; }
         #tooltip .tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.1); color: #c5c6c7; }
-        #tooltip p { margin: 0; font-size: 0.9em; line-height: 1.5; color: #fff; }
+        #tooltip p { margin: 0; font-size: 13px; line-height: 1.5; color: #fff; }
 
         /* 控制面板开关 */
         .controls {
@@ -46,54 +46,56 @@
             bottom: 20px;
             right: 20px;
             background: rgba(255, 255, 255, 0.1);
-            padding: 10px 15px;
+            padding: 8px 12px;
             border-radius: 20px;
             backdrop-filter: blur(5px);
             z-index: 100;
             display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 14px;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 12px;
             border: 1px solid rgba(255,255,255,0.2);
         }
+        .control-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
         
         /* 开关样式 */
-        .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+        .switch { position: relative; display: inline-block; width: 34px; height: 18px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 20px; }
-        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
         input:checked + .slider { background-color: #66fcf1; }
-        input:checked + .slider:before { transform: translateX(20px); }
+        input:checked + .slider:before { transform: translateX(16px); }
 
         /* 星星背景 */
         .star { position: absolute; background: white; border-radius: 50%; opacity: 0.5; animation: twinkle 3s infinite; }
         @keyframes twinkle { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.8; } }
+
+        /* 圈子标签样式 */
+        .group-label { font-size: 12px; font-weight: bold; text-shadow: 0 0 4px #000; pointer-events: none; }
     </style>
 </head>
 <body>
 
-    <!-- 悬浮提示 -->
     <div id="tooltip"></div>
 
-    <!-- 控制面板 -->
     <div class="controls">
-        <span>显示人物关系网</span>
-        <label class="switch">
-            <input type="checkbox" id="toggleRelations" checked>
-            <span class="slider"></span>
-        </label>
+        <div class="control-item">
+            <span>显示圈子 (Groups)</span>
+            <label class="switch"><input type="checkbox" id="toggleGroups" checked><span class="slider"></span></label>
+        </div>
+        <div class="control-item">
+            <span>显示连线 (Links)</span>
+            <label class="switch"><input type="checkbox" id="toggleRelations" checked><span class="slider"></span></label>
+        </div>
     </div>
 
     <script>
         // ==========================================
-        // 🛠️ 数据配置区域 (请修改这里)
+        // 🛠️ 数据配置区域
         // ==========================================
 
-        // 1. 阶段排序设置 (没写在这里的阶段会自动归类到最后)
-        // 这里控制了扇形排列的顺序
         const customOrder = ["初中", "高中", "本科", "硕士", "实习"];
 
-        // 2. 朋友数据清单
         const friendsData = [
             // --- 初中 ---
             { id: "M01", name: "丸老师/蠢滢", stage: "初中", distance: 6, contact: true, gender: "女", mbti: "INFJ", personality: "淡淡的绿老头", story: "淡淡的绿老头。" },
@@ -101,324 +103,315 @@
             { id: "M03", name: "xx/叉叉", stage: "初中", distance: 51, contact: false, gender: "男", mbti: "ISFP", personality: "", story: "嗯嗯。。我那个taidu的朋友，2019之后就没见过面惹，目前仅朋友圈点赞之交。" },
         
             // --- 高中 ---
-            { id: "H01", name: "kiki", stage: "高中", distance: 11, contact: true, gender: "女", mbti: "ISTJ", personality: "互联网HR", story: "在北师大读研，一起写毕业论文联盟。是所有朋友里唯一一个会打语音聊烦恼的朋友，一起去过上海迪士尼，劝我要学会接受新的交友方式。" },
-            { id: "H02", name: "ruojia", stage: "高中", distance: 16, contact: true, gender: "女", mbti: "INFP", personality: "二次元", story: "因为看了我推荐的小说，选了精算专业到现在还在骂我的朋友:P。是我共同爱好最多的朋友（耽美/乙游）。" },
-            { id: "H03", name: "dudu", stage: "高中", distance: 21, contact: true, gender: "女", mbti: "", personality: "理科白痴", story: "我高三最后阶段的同桌，我俩属于两个理科白痴一起互相鼓励的革命友谊。" },
+            { id: "H01", name: "kiki", stage: "高中", distance: 11, contact: true, gender: "女", mbti: "ISTJ", personality: "互联网HR", story: "在北师大读研，一起写毕业论文联盟。" },
+            { id: "H02", name: "ruojia", stage: "高中", distance: 16, contact: true, gender: "女", mbti: "INFP", personality: "二次元", story: "是我共同爱好最多的朋友（耽美/乙游）。" },
+            { id: "H03", name: "dudu", stage: "高中", distance: 21, contact: true, gender: "女", mbti: "", personality: "理科白痴", story: "我高三最后阶段的同桌。" },
             { id: "H04", name: "fanfan", stage: "高中", distance: 26, contact: true, gender: "女", mbti: "ENFJ", personality: "", story: "现在在美国工作，圣诞节回广州见的朋友。" },
-            { id: "H05", name: "大嘴健/师傅", stage: "高中", distance: 91, contact: false, gender: "男", mbti: "ENFP", personality: "狐朋狗友", story: "高中互相教数学/英语的关系，现在仅朋友圈点赞评论之交，0私聊。" },
+            { id: "H05", name: "大嘴健/师傅", stage: "高中", distance: 91, contact: false, gender: "男", mbti: "ENFP", personality: "狐朋狗友", story: "高中互相教数学/英语的关系，现在仅朋友圈点赞。" },
         
             // --- 本科 ---
-            { id: "U01", name: "辣子", stage: "本科", distance: 13, contact: true, gender: "女", mbti: "INFJ", personality: "混子组", story: "讨伐型/滑跪型人格。经常熬夜的广告人。冰沙事件主人公：“你们是什么狗人我今天会看清楚”。" },
-            { id: "U02", name: "球球", stage: "本科", distance: 21, contact: true, gender: "女", mbti: "INFJ", personality: "混子组", story: "在香港读研的朋友。冰沙事件嫌疑人：“是没给钱吗”。" },
+            { id: "U01", name: "辣子", stage: "本科", distance: 13, contact: true, gender: "女", mbti: "INFJ", personality: "混子组", story: "讨伐型/滑跪型人格。经常熬夜的广告人。" },
+            { id: "U02", name: "球球", stage: "本科", distance: 21, contact: true, gender: "女", mbti: "INFJ", personality: "混子组", story: "在香港读研的朋友。冰沙事件嫌疑人。" },
             { id: "U03", name: "妮", stage: "本科", distance: 28, contact: true, gender: "女", mbti: "", personality: "室友", story: "关系最好的室友。" },
             { id: "U04", name: "韵姐", stage: "本科", distance: 28, contact: true, gender: "女", mbti: "", personality: "室友", story: "我肠胃炎发烧的时候陪我去急诊的室友。" },
             { id: "U05", name: "羊", stage: "本科", distance: 29, contact: true, gender: "女", mbti: "", personality: "室友", story: "互联网产品同行:) 算是我干产品的启蒙人吧。" },
-            { id: "U06", name: "饼饼", stage: "本科", distance: 41, contact: true, gender: "女", mbti: "INFP", personality: "混子组", story: "见人说人话见鬼说鬼话，见到男朋友就不和我说话:)。冰沙事件嫌疑人：“是我的吗，喝一口”。" },
+            { id: "U06", name: "饼饼", stage: "本科", distance: 41, contact: true, gender: "女", mbti: "INFP", personality: "混子组", story: "见人说人话见鬼说鬼话。冰沙事件嫌疑人。" },
         
             // --- 硕士 ---
-            { id: "G01", name: "鸭老师", stage: "硕士", distance: 29, contact: true, gender: "女", mbti: "ENFP", personality: "追星搭子", story: "会一起喝酒的朋友。在我追的爱豆还没塌房之前，我俩是同担。" },
-            { id: "G02", name: "小林老师", stage: "硕士", distance: 31, contact: true, gender: "女", mbti: "INTJ", personality: "室友", story: "住在一起但因为边界感太强所以不是很熟的俩人...orz。俩产品探子。" },
+            { id: "G01", name: "鸭老师", stage: "硕士", distance: 29, contact: true, gender: "女", mbti: "ENFP", personality: "追星搭子", story: "会一起喝酒的朋友。同担。" },
+            { id: "G02", name: "小林老师", stage: "硕士", distance: 31, contact: true, gender: "女", mbti: "INTJ", personality: "室友", story: "住在一起但因为边界感太强所以不是很熟的俩人。" },
             { id: "G03", name: "小刘", stage: "硕士", distance: 36, contact: true, gender: "女", mbti: "INFJ", personality: "研友", story: "一起备考复试的学硕同学。" },
         
             // --- 实习 ---
-            { id: "I01", name: "扎扎", stage: "实习", distance: 11, contact: true, gender: "女", mbti: "ENFP", personality: "bilibili", story: "我读研以后认识的关系最亲密的朋友。可以和我聊情感问题，我的放下是由她引路的。" },
+            { id: "I01", name: "扎扎", stage: "实习", distance: 11, contact: true, gender: "女", mbti: "ENFP", personality: "bilibili", story: "我读研以后认识的关系最亲密的朋友。" },
             { id: "I02", name: "柳丁哥", stage: "实习", distance: 23, contact: true, gender: "男", mbti: "ISFJ", personality: "bilibili", story: "哎哟。火星撞地球的关系。" },
-            { id: "I03", name: "qq小冰", stage: "实习", distance: 26, contact: true, gender: "女", mbti: "INFJ", personality: "mi", story: "算是合得来但是观念上会有些不一样，但她人还是很好的。" },
+            { id: "I03", name: "qq小冰", stage: "实习", distance: 26, contact: true, gender: "女", mbti: "INFJ", personality: "mi", story: "算是合得来但是观念上会有些不一样。" },
         ];
 
-        // 3. 朋友间的关系连线 (高级功能)
-        // source 和 target 必须填上面的 name (姓名)
+        // 🟢 新增：圈子数据 (Groups)
+        // members: 必须填 friendsData 里的 name
+        const groupsData = [
+            { name: "冰沙事件组", members: ["辣子", "球球", "饼饼"], color: "#ff4d94", type: "dashed" },
+            { name: "宿舍F4", members: ["妮", "韵姐", "羊"], color: "#66fcf1", type: "solid" },
+            { name: "B站搭子", members: ["扎扎", "柳丁哥"], color: "#ffd700", type: "dotted" } // 2个人会连成线
+        ];
+
+        // 🔵 维持：点对点连线 (如果需要额外补充)
         const relationsData = [
+            // 示例： { source: "kiki", target: "ruojia", label: "基友", type: "solid", arrow: false }
         ];
 
         // ==========================================
-        // ⚙️ 核心代码逻辑 (无需修改)
+        // ⚙️ 核心代码逻辑
         // ==========================================
 
-        // 1. 初始化画布与响应式设置
         function init() {
-            // 清空旧图 (用于Resize时重绘)
             d3.select("body").selectAll("svg").remove();
 
             const width = window.innerWidth;
             const height = window.innerHeight;
-            // 响应式半径：取长宽较小值的45%作为最大半径，保证不超出屏幕
             const maxRadius = Math.min(width, height) * 0.45;
-            const centerRadius = 20; // 中心的“我”的大小
+            const centerRadius = 20;
 
             const svg = d3.select("body").append("svg")
                 .attr("width", width)
                 .attr("height", height)
-                .attr("viewBox", [ -width / 2, -height / 2, width, height ]) // 居中坐标系
+                .attr("viewBox", [ -width / 2, -height / 2, width, height ])
                 .style("max-width", "100%")
                 .style("height", "auto");
 
-            const mainG = svg.append("g"); // 主容器
-
-            // 定义箭头标记 (Marker)
+            const mainG = svg.append("g");
             const defs = svg.append("defs");
-            defs.append("marker")
-                .attr("id", "arrow")
-                .attr("viewBox", "0 -5 10 10")
-                .attr("refX", 18) // 箭头位置微调
-                .attr("refY", 0)
-                .attr("markerWidth", 6)
-                .attr("markerHeight", 6)
-                .attr("orient", "auto")
-                .append("path")
-                .attr("d", "M0,-5L10,0L0,5")
-                .attr("fill", "#66fcf1");
 
-            // 定义发光滤镜
+            // 滤镜
             const filter = defs.append("filter").attr("id", "glow");
             filter.append("feGaussianBlur").attr("stdDeviation", "2.5").attr("result", "coloredBlur");
             const feMerge = filter.append("feMerge");
             feMerge.append("feMergeNode").attr("in", "coloredBlur");
             feMerge.append("feMergeNode").attr("in", "SourceGraphic");
 
-            // 2. 智能计算扇区角度 (按人数比例)
-            // 统计每个阶段的人数
+            // 1. 扇区与角度计算
             const stageCounts = d3.rollups(friendsData, v => v.length, d => d.stage);
             const stageMap = new Map(stageCounts);
-            
-            // 排序阶段
             let allStages = Array.from(stageMap.keys());
             allStages.sort((a, b) => {
-                let ia = customOrder.indexOf(a);
-                let ib = customOrder.indexOf(b);
-                if (ia === -1) ia = 999; 
-                if (ib === -1) ib = 999;
+                let ia = customOrder.indexOf(a); let ib = customOrder.indexOf(b);
+                if (ia === -1) ia = 999; if (ib === -1) ib = 999;
                 return ia - ib;
             });
 
-            // 生成饼图数据来分配角度
-            const pie = d3.pie()
-                .value(d => stageMap.get(d)) // 权重：根据人数
-                .sort(null) // 不自动重新排序，按我们整理好的allStages排
-                .padAngle(0.05); // 扇区之间留点缝隙
-
+            const pie = d3.pie().value(d => stageMap.get(d)).sort(null).padAngle(0.08); // 增加一点间隙方便区分
             const arcs = pie(allStages);
-            
-            // 建立 阶段 -> 角度范围 的映射
             const angleMap = {};
             arcs.forEach(d => {
-                angleMap[d.data] = {
-                    start: d.startAngle,
-                    end: d.endAngle,
-                    mid: (d.startAngle + d.endAngle) / 2
-                };
+                angleMap[d.data] = { start: d.startAngle, end: d.endAngle, mid: (d.startAngle + d.endAngle) / 2 };
             });
 
-            // 3. 绘制扇区背景线和文字
+            // 2. 绘制背景
             const sectorG = mainG.append("g").attr("class", "sectors");
-            
             arcs.forEach(d => {
-                const r = maxRadius + 30; // 标签距离
+                const r = maxRadius + 30;
                 const midAngle = (d.startAngle + d.endAngle) / 2;
-                // 极坐标转笛卡尔坐标
                 const labelX = Math.sin(midAngle) * r;
                 const labelY = -Math.cos(midAngle) * r;
-
-                // 画分割线
                 const lineX = Math.sin(d.startAngle) * maxRadius;
                 const lineY = -Math.cos(d.startAngle) * maxRadius;
+                
                 sectorG.append("line")
-                    .attr("x1", 0).attr("y1", 0)
-                    .attr("x2", lineX).attr("y2", lineY)
-                    .attr("stroke", "rgba(255,255,255,0.08)")
-                    .attr("stroke-dasharray", "4,4");
-
-                // 阶段文字
+                    .attr("x1", 0).attr("y1", 0).attr("x2", lineX).attr("y2", lineY)
+                    .attr("stroke", "rgba(255,255,255,0.08)").attr("stroke-dasharray", "4,4");
                 sectorG.append("text")
-                    .attr("x", labelX)
-                    .attr("y", labelY)
-                    .attr("text-anchor", "middle")
-                    .attr("dominant-baseline", "middle")
-                    .attr("fill", "#888")
-                    .attr("font-size", "14px")
-                    .text(d.data);
+                    .attr("x", labelX).attr("y", labelY)
+                    .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
+                    .attr("fill", "#888").attr("font-size", "14px").text(d.data);
             });
 
-            // 4. 计算每个节点的理想位置 (极坐标)
-            const radiusScale = d3.scaleLinear()
-                .domain([0, 100])
-                .range([centerRadius + 20, maxRadius]);
-
+            // 3. 计算节点位置
+            const radiusScale = d3.scaleLinear().domain([0, 100]).range([centerRadius + 20, maxRadius]);
+            
             const nodes = friendsData.map(d => {
                 const angleInfo = angleMap[d.stage];
-                // 初始角度设为扇区中间，带一点点随机防止完全重叠
-                const angle = angleInfo.mid + (Math.random() - 0.5) * 0.1;
+                const angle = angleInfo.mid + (Math.random() - 0.5) * 0.15; // 稍微增加一点随机角度
                 const r = radiusScale(d.distance);
-                
-                // 计算目标极坐标位置
-                const targetX = Math.sin(angle) * r;
-                const targetY = -Math.cos(angle) * r;
-
-                return {
-                    ...d,
-                    x: targetX, // 初始位置
-                    y: targetY,
-                    targetX: targetX, // 物理引擎的目标位置
-                    targetY: targetY,
-                    r: r, // 极径
-                    radius: d.distance < 20 ? 14 : 9 // 碰撞半径(球体大小)
-                };
+                const tx = Math.sin(angle) * r;
+                const ty = -Math.cos(angle) * r;
+                return { ...d, x: tx, y: ty, targetX: tx, targetY: ty, r: r, radius: d.distance < 20 ? 14 : 9 };
             });
 
-            // 5. 物理引擎防止重叠 (Force Simulation)
-            // 这一步是为了微调位置，让挤在一起的球分开，但又尽量保持在原来的距离和角度
+            // 4. 物理引擎 (增加圈子引力)
             const simulation = d3.forceSimulation(nodes)
-                .force("x", d3.forceX(d => d.targetX).strength(0.5)) // 强力拉向原本该在的位置
-                .force("y", d3.forceY(d => d.targetY).strength(0.5))
-                .force("collide", d3.forceCollide(d => d.radius + 5).iterations(2)) // 碰撞体积
-                .stop();
+                .force("x", d3.forceX(d => d.targetX).strength(0.6)) 
+                .force("y", d3.forceY(d => d.targetY).strength(0.6))
+                .force("collide", d3.forceCollide(d => d.radius + 8).iterations(3)); // 增加碰撞距离防止太挤
 
-            // 手动运行多次模拟，直接得到稳定结果，不显示动画过程
-            for (let i = 0; i < 150; i++) simulation.tick();
-
-            // 6. 绘制朋友间的关系网 (Requirement 4)
-            const relationsG = mainG.append("g").attr("class", "relations-layer");
+            // *关键*：让同一个圈子的人稍微靠近一点
+            const groupLinks = [];
+            groupsData.forEach(g => {
+                const members = nodes.filter(n => g.members.includes(n.name));
+                for(let i=0; i<members.length; i++) {
+                    for(let j=i+1; j<members.length; j++) {
+                        groupLinks.push({ source: members[i], target: members[j] });
+                    }
+                }
+            });
+            // 添加弱引力
+            simulation.force("group", d3.forceLink(groupLinks).strength(0.05).distance(50));
             
-            // 构建 name -> node 的映射
-            const nameToNode = {};
-            nodes.forEach(n => nameToNode[n.name] = n);
+            // 运行模拟
+            for (let i = 0; i < 200; i++) simulation.tick();
 
+            // 5. 绘制圈子 Hull (Groups)
+            const groupsG = mainG.append("g").attr("class", "groups-layer");
+            
+            groupsData.forEach(g => {
+                const members = nodes.filter(n => g.members.includes(n.name));
+                if (members.length < 2) return;
+
+                // 计算 Convex Hull
+                const coords = members.map(m => [m.x, m.y]);
+                let pathData = "";
+                let center = [0, 0];
+
+                if (members.length === 2) {
+                    // 两个人画连线
+                    pathData = `M${coords[0][0]},${coords[0][1]} L${coords[1][0]},${coords[1][1]}`;
+                    center = [(coords[0][0]+coords[1][0])/2, (coords[0][1]+coords[1][1])/2];
+                } else {
+                    // 多人画多边形
+                    const hull = d3.polygonHull(coords);
+                    if(hull) {
+                        pathData = "M" + hull.join("L") + "Z";
+                        center = d3.polygonCentroid(hull);
+                    } else {
+                        // 异常回退：连成线
+                        pathData = d3.line()(coords);
+                    }
+                }
+
+                const groupContainer = groupsG.append("g").attr("class", "group-item");
+
+                groupContainer.append("path")
+                    .attr("d", pathData)
+                    .attr("fill", g.color).attr("fill-opacity", 0.1) // 淡淡的背景填充
+                    .attr("stroke", g.color).attr("stroke-width", 25) // 极宽的透明描边作为圆角效果
+                    .attr("stroke-opacity", 0.1)
+                    .attr("stroke-linejoin", "round");
+                
+                groupContainer.append("path")
+                    .attr("d", pathData)
+                    .attr("fill", "none")
+                    .attr("stroke", g.color).attr("stroke-width", 1.5)
+                    .attr("stroke-dasharray", g.type === "dashed" ? "5,5" : (g.type === "dotted" ? "2,2" : "0"))
+                    .attr("stroke-linejoin", "round");
+
+                // 圈子文字
+                groupContainer.append("text")
+                    .attr("class", "group-label")
+                    .attr("x", center[0]).attr("y", center[1])
+                    .attr("text-anchor", "middle").attr("dy", 4)
+                    .attr("fill", g.color)
+                    .text(g.name);
+            });
+
+            // 6. 绘制其他点对点连线 (Relations)
+            const relationsG = mainG.append("g").attr("class", "relations-layer");
+            const nameToNode = {}; nodes.forEach(n => nameToNode[n.name] = n);
             const validRelations = relationsData.filter(r => nameToNode[r.source] && nameToNode[r.target]);
-
-            const linkPaths = relationsG.selectAll(".rel-link")
-                .data(validRelations)
-                .enter()
-                .append("path")
-                .attr("class", "rel-link")
-                .attr("d", d => {
-                    const s = nameToNode[d.source];
-                    const t = nameToNode[d.target];
-                    return `M${s.x},${s.y} L${t.x},${t.y}`;
-                })
-                .attr("stroke", "#66fcf1")
-                .attr("stroke-width", 1.5)
-                .attr("stroke-opacity", 0.6)
+            
+            relationsG.selectAll("path")
+                .data(validRelations).enter().append("path")
+                .attr("d", d => `M${nameToNode[d.source].x},${nameToNode[d.source].y} L${nameToNode[d.target].x},${nameToNode[d.target].y}`)
+                .attr("stroke", "#66fcf1").attr("stroke-width", 1)
                 .attr("fill", "none")
-                .attr("stroke-dasharray", d => {
-                    if (d.type === 'dotted') return "2,2";
-                    if (d.type === 'dashed') return "6,4";
-                    return "0";
-                })
-                .attr("marker-end", d => d.arrow ? "url(#arrow)" : null);
+                .attr("stroke-dasharray", d => d.type === 'dashed' ? "6,4" : "0");
 
-            // 关系文字标签
-            const linkLabels = relationsG.selectAll(".rel-label")
-                .data(validRelations)
-                .enter()
-                .append("text")
-                .attr("class", "rel-label")
-                .attr("x", d => (nameToNode[d.source].x + nameToNode[d.target].x) / 2)
-                .attr("y", d => (nameToNode[d.source].y + nameToNode[d.target].y) / 2)
-                .attr("text-anchor", "middle")
-                .attr("fill", "#66fcf1")
-                .attr("font-size", "10px")
-                .style("background", "black") // 简单模拟描边效果
-                .text(d => d.label);
-
-
-            // 7. 绘制连线 (连向圆心)
-            const linksG = mainG.append("g").attr("class", "center-links");
-            linksG.selectAll("line")
-                .data(nodes)
-                .enter()
-                .append("line")
-                .attr("x1", 0).attr("y1", 0)
-                .attr("x2", d => d.x).attr("y2", d => d.y)
+            // 7. 绘制连向圆心的线 (优化可见度)
+            mainG.append("g").selectAll("line")
+                .data(nodes).enter().append("line")
+                .attr("x1", 0).attr("y1", 0).attr("x2", d => d.x).attr("y2", d => d.y)
                 .attr("stroke", d => d.gender === "女" ? "#ff4d94" : "#00d2ff")
-                .attr("stroke-width", 1)
-                .attr("opacity", 0.3)
-                .attr("stroke-dasharray", d => d.contact ? "0" : "4,4");
+                .attr("stroke-width", 1.5) // 加粗
+                .attr("opacity", 0.6) // 提高不透明度
+                .attr("stroke-dasharray", d => d.contact ? "0" : "3,4"); // 虚线更明显
 
-            // 8. 绘制节点 (星球)
-            const nodesG = mainG.append("g").attr("class", "nodes");
-            const circles = nodesG.selectAll("circle")
-                .data(nodes)
-                .enter()
-                .append("circle")
+            // 8. 绘制节点 (需求：不联系的节点变成虚线圈)
+            const circles = mainG.append("g").selectAll("circle")
+                .data(nodes).enter().append("circle")
                 .attr("r", d => d.distance < 20 ? 12 : 7)
-                .attr("cx", d => d.x)
-                .attr("cy", d => d.y)
+                .attr("cx", d => d.x).attr("cy", d => d.y)
+                // 填充色：如果不联系，透明度降低
                 .attr("fill", d => d.gender === "女" ? "#ff4d94" : "#00d2ff")
+                .attr("fill-opacity", d => d.contact ? 1 : 0.3) 
+                // 描边：如果不联系，描边变成虚线，且为亮白色
+                .attr("stroke", d => d.contact ? "#fff" : "rgba(255,255,255,0.8)")
+                .attr("stroke-width", d => d.distance < 20 ? 2 : (d.contact ? 0 : 1.5))
+                .attr("stroke-dasharray", d => d.contact ? "0" : "2,1") // 虚线边框
                 .style("filter", "url(#glow)")
-                .style("cursor", "pointer")
-                .attr("stroke", "#fff")
-                .attr("stroke-width", d => d.distance < 20 ? 2 : 0);
+                .style("cursor", "pointer");
 
-            // 9. 绘制圆心 (我)
+            // 9. 绘制圆心
             const me = mainG.append("g").style("filter", "url(#glow)");
             me.append("circle").attr("r", 16).attr("fill", "#ffd700");
-            me.append("text").attr("y", 5).attr("text-anchor", "middle").attr("fill", "#000")
-              .style("font-size", "10px").style("font-weight", "bold").text("我");
+            me.append("text").attr("y", 5).attr("text-anchor", "middle").style("font-size", "10px").style("font-weight", "bold").text("我");
 
-            // 10. 交互逻辑
+            // 10. 交互逻辑 (智能定位 Tooltip)
             const tooltip = d3.select("#tooltip");
-
-            circles.on("mouseover", function(event, d) {
+            
+            function showTooltip(event, d) {
+                event.stopPropagation(); // 防止冒泡
                 d3.select(this).transition().attr("r", 18);
                 
-                // 构建标签HTML
                 let tagsHtml = `<span class="tag">${d.stage}</span>`;
                 if(d.mbti) tagsHtml += `<span class="tag">${d.mbti}</span>`;
                 if(d.personality) tagsHtml += `<span class="tag">${d.personality}</span>`;
                 
+                tooltip.html(`
+                    <h3>${d.name} <span style="font-size:0.7em;opacity:0.7">${!d.contact ? "(失联)" : ""}</span></h3>
+                    <div class="tags">${tagsHtml}</div>
+                    <p>“${d.story}”</p>
+                `);
+
+                // 智能定位逻辑
+                const tWidth = 240; // Tooltip width
+                const tHeight = tooltip.node().offsetHeight || 150; // Estimate height
+                const screenW = window.innerWidth;
+                const screenH = window.innerHeight;
+                
+                let left = event.pageX;
+                let top = event.pageY - 20;
+
+                // 如果点击位置靠右，Tooltip 向左显示
+                if (left > screenW * 0.6) {
+                    left = left - tWidth;
+                } else {
+                    left = left + 20; // 否则向右偏移一点
+                }
+
+                // 防止超出下边界
+                if (top + tHeight > screenH) {
+                    top = screenH - tHeight - 20;
+                }
+
                 tooltip.style("opacity", 1)
-                    .html(`
-                        <h3>${d.name} <span style="font-size:0.7em;color:#fff;opacity:0.6">${d.gender}</span></h3>
-                        <div class="tags">${tagsHtml}</div>
-                        <p>“${d.story}”</p>
-                    `);
-            })
-            .on("mousemove", function(event) {
-                // 跟随鼠标
-                tooltip.style("left", (event.pageX) + "px")
-                       .style("top", (event.pageY - 10) + "px");
-            })
-            .on("mouseout", function() {
-                d3.select(this).transition().attr("r", d => d.distance < 20 ? 12 : 7);
+                       .style("left", left + "px")
+                       .style("top", top + "px");
+            }
+
+            circles.on("click", showTooltip); // 移动端友好：改为点击触发
+            circles.on("mouseover", showTooltip); // PC端保留悬停
+
+            // 点击空白处关闭 Tooltip
+            svg.on("click", () => {
                 tooltip.style("opacity", 0);
+                circles.transition().attr("r", d => d.distance < 20 ? 12 : 7);
             });
 
-            // 11. 关系网开关控制
-            const toggle = document.getElementById('toggleRelations');
-            function updateRelations() {
-                const opacity = toggle.checked ? 1 : 0;
-                relationsG.transition().duration(500).style("opacity", opacity);
-            }
-            toggle.addEventListener('change', updateRelations);
-            updateRelations(); // 初始化
+            // 11. 开关控制
+            d3.select("#toggleGroups").on("change", function() {
+                groupsG.transition().style("opacity", this.checked ? 1 : 0);
+            });
+            d3.select("#toggleRelations").on("change", function() {
+                relationsG.transition().style("opacity", this.checked ? 1 : 0);
+            });
         }
 
-        // 初始化背景星星
         function createStars() {
             for(let i=0; i<150; i++) {
                 const star = document.createElement('div');
                 star.className = 'star';
                 const size = Math.random() * 2;
-                star.style.width = size + 'px';
-                star.style.height = size + 'px';
-                star.style.left = Math.random() * 100 + 'vw';
-                star.style.top = Math.random() * 100 + 'vh';
+                star.style.width = size + 'px'; star.style.height = size + 'px';
+                star.style.left = Math.random() * 100 + 'vw'; star.style.top = Math.random() * 100 + 'vh';
                 star.style.animationDuration = (Math.random() * 3 + 2) + 's';
                 document.body.appendChild(star);
             }
         }
 
-        // 启动
         createStars();
         init();
-
-        // 监听窗口大小改变，重新绘制 (防抖动)
+        
         let resizeTimer;
-        window.addEventListener('resize', () => {
-            clearTimeout(resizeTimer);
-            resizeTimer = setTimeout(init, 300);
-        });
-
+        window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(init, 300); });
     </script>
 </body>
 </html>
